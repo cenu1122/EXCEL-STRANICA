@@ -3,172 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Pisala PRO - Slike i Justify</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <title>Moj TV Radni Prostor</title>
     <style>
         body {
-            background-color: #525659;
+            background-color: #1a1a1a; /* Tamna pozadina, ugodnija za TV */
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 0;
-            font-family: 'Times New Roman', serif;
-        }
-
-        /* Traka sa alatima prilagođena za TV */
-        .toolbar {
-            position: sticky;
-            top: 0;
-            background: #ffffff;
-            width: 100%;
-            padding: 15px;
-            display: flex;
             justify-content: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            z-index: 1000;
-            border-bottom: 3px solid #2b579a;
+            height: 100vh;
+            margin: 0;
         }
 
-        .group {
+        h1 {
+            margin-bottom: 50px;
+            font-size: 3rem;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .menu-container {
             display: flex;
-            gap: 8px;
-            border-right: 2px solid #ddd;
-            padding-right: 15px;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .menu-card {
+            width: 300px;
+            height: 200px;
+            background: #2b579a; /* Word plava */
+            display: flex;
+            flex-direction: column;
             align-items: center;
-        }
-
-        button, select {
-            padding: 10px 15px;
+            justify-content: center;
+            border-radius: 15px;
             cursor: pointer;
-            border: 1px solid #ccc;
-            background: #f8f9fa;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        button:hover {
-            background: #e2e6ea;
-            border-color: #2b579a;
-        }
-
-        .btn-img {
-            background-color: #e1f5fe;
-            color: #01579b;
-            border: 1px solid #01579b;
-        }
-
-        .btn-pdf {
-            background-color: #2b579a;
+            text-decoration: none;
             color: white;
-            border: none;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 4px solid transparent;
         }
 
-        /* Izgled Word stranice */
-        #editor-container {
-            padding: 40px 0;
+        .menu-card.excel {
+            background: #217346; /* Excel zelena */
         }
 
-        #document-page {
-            background-color: white;
-            width: 210mm; /* A4 širina */
-            min-height: 297mm; /* A4 visina */
-            padding: 25mm; /* Margine */
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        .menu-card:hover, .menu-card:focus {
+            transform: scale(1.1);
+            border-color: white;
+            box-shadow: 0 0 30px rgba(255,255,255,0.2);
             outline: none;
-            font-size: 18px;
-            line-height: 1.6;
-            color: black;
-            box-sizing: border-box;
-            text-align: justify; /* Početno obostrano poravnanje */
         }
 
-        /* Stil za slike unutar dokumenta */
-        #document-page img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 10px auto;
+        .icon {
+            font-size: 4rem;
+            margin-bottom: 10px;
         }
 
-        @media screen and (max-width: 850px) {
-            #document-page { width: 95vw; padding: 20px; }
+        .title {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .desc {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
 
-    <div class="toolbar">
-        <div class="group">
-            <button onclick="execCmd('bold')">B</button>
-            <button onclick="execCmd('italic')">I</button>
-            <button onclick="execCmd('underline')">U</button>
-        </div>
+    <h1>RADNI PROSTOR</h1>
 
-        <div class="group">
-            <button onclick="execCmd('justifyLeft')">Lijevo</button>
-            <button onclick="execCmd('justifyCenter')">Centar</button>
-            <button onclick="execCmd('justifyFull')">OBOSTRANO</button>
-        </div>
+    <div class="menu-container">
+        <a href="word.html" class="menu-card">
+            <div class="icon">📝</div>
+            <div class="title">WORD</div>
+            <div class="desc">Dokumenti i slike</div>
+        </a>
 
-        <div class="group">
-            <select onchange="execCmd('fontSize', this.value)">
-                <option value="3">Veličina</option>
-                <option value="4">Srednja</option>
-                <option value="5">Velika</option>
-                <option value="6">Naslov</option>
-            </select>
-            
-            <input type="file" id="imageInput" hidden accept="image/*" onchange="insertImage(event)">
-            <button class="btn-img" onclick="document.getElementById('imageInput').click()">📷 UBACI SLIKU</button>
-        </div>
-
-        <button class="btn-pdf" onclick="downloadPDF()">SAČUVAJ KAO PDF</button>
+        <a href="excel.html" class="menu-card excel">
+            <div class="icon">📊</div>
+            <div class="title">EXCEL</div>
+            <div class="desc">Tabele i proračuni</div>
+        </a>
     </div>
 
-    <div id="editor-container">
-        <div id="document-page" contenteditable="true">
-            Počnite kucati svoj tekst ovdje... Koristite dugmad iznad za formatiranje i ubacivanje slika.
-        </div>
-    </div>
-
-    <script>
-        // Funkcija za komande teksta
-        function execCmd(command, value = null) {
-            document.execCommand(command, false, value);
-        }
-
-        // Funkcija za obradu i ubacivanje slike
-        function insertImage(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const imgTag = `<img src="${e.target.result}" alt="slika">`;
-                    // Ubacuje sliku tamo gdje je kursor
-                    document.execCommand('insertHTML', false, imgTag + '<br>');
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        // Funkcija za pretvaranje u PDF
-        function downloadPDF() {
-            const element = document.getElementById('document-page');
-            const opt = {
-                margin:       10,
-                filename:     'moj_dokument.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            
-            // Pokreni snimanje
-            html2pdf().set(opt).from(element).save();
-        }
-    </script>
+    <p style="margin-top: 50px; color: #666;">Prilagođeno za Android TV</p>
 
 </body>
 </html>
