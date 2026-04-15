@@ -15,22 +15,19 @@
             padding: 15px 25px; font-size: 20px; font-weight: bold; 
             cursor: pointer; margin-right: 10px; border-radius: 4px;
         }
-
         table { border-collapse: collapse; width: 100%; border: 1px solid #ccc; }
         .header-letters { background: #e0e0e0; text-align: center; font-weight: bold; height: 40px; }
-        
-        th, td { border: 1px solid #ccc; padding: 12px; font-size: 18px; position: relative; }
+        th, td { border: 1px solid #ccc; padding: 12px; font-size: 18px; position: relative; min-width: 100px; }
         th { background: #fff; font-size: 22px; text-align: left; }
-
         .menu-dots { cursor: pointer; float: right; font-size: 22px; color: #888; margin-left: 10px; }
 
-        /* Stil za tvoj meni sa slike */
+        /* Popravljen meni sa ikonama */
         #custom-menu {
             display: none; position: absolute; background: white; 
             border: 1px solid #000; box-shadow: 4px 4px 10px rgba(0,0,0,0.2); 
-            z-index: 1000; min-width: 150px;
+            z-index: 1000; min-width: 160px;
         }
-        #custom-menu div { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px; }
+        #custom-menu div { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 18px; }
         #custom-menu div:hover { background: #f0f0f0; }
 
         .total-row { background: #f5f5f5; font-weight: bold; }
@@ -48,12 +45,13 @@
     <table id="myTable">
         <thead>
             <tr class="header-letters" id="letters-row">
-                <td style="width: 60px;"></td><td>A</td><td>B</td><td>C</td><td style="width: 40px;"></td>
+                <td style="width: 80px;"></td><td>A</td><td>B</td><td>C</td><td style="width: 50px;">D</td><td></td>
             </tr>
             <tr>
                 <th>ID <span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>
                 <th>Naziv Stavke <span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>
                 <th>Vrijednost (KM) <span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>
+                <th>Opis <span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>
                 <th><span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>
             </tr>
         </thead>
@@ -62,13 +60,21 @@
                 <td>1 <span class="menu-dots" onclick="prikaziMeni()">⋮</span></td>
                 <td contenteditable="true" oninput="izracunajSve()">Stavka 1</td>
                 <td contenteditable="true" oninput="izracunajSve()" class="vrijednost">100.00</td>
+                <td contenteditable="true">Detalji...</td>
+                <td><span class="menu-dots" onclick="prikaziMeni()">⋮</span></td>
+            </tr>
+            <tr>
+                <td>2 <span class="menu-dots" onclick="prikaziMeni()">⋮</span></td>
+                <td contenteditable="true" oninput="izracunajSve()">Stavka 2</td>
+                <td contenteditable="true" oninput="izracunajSve()" class="vrijednost">0.00</td>
+                <td contenteditable="true"></td>
                 <td><span class="menu-dots" onclick="prikaziMeni()">⋮</span></td>
             </tr>
         </tbody>
         <tfoot>
             <tr class="total-row">
-                <td colspan="2" style="text-align: right;">UKUPNO:</td>
-                <td id="ukupno-polje">100.00</td>
+                <td colspan="2" style="text-align: right;">UKUPNO (KM):</td>
+                <td id="ukupno-polje" colspan="2">100.00</td>
                 <td></td>
             </tr>
         </tfoot>
@@ -84,7 +90,8 @@
         function izracunajSve() {
             let suma = 0;
             document.querySelectorAll('.vrijednost').forEach(p => {
-                suma += parseFloat(p.innerText.replace(',', '.')) || 0;
+                let br = parseFloat(p.innerText.replace(',', '.')) || 0;
+                suma += br;
             });
             document.getElementById('ukupno-polje').innerText = suma.toFixed(2);
         }
@@ -99,7 +106,7 @@
         }
 
         function akcija(tip) {
-            console.log("Izabrano: " + tip);
+            if(tip === 'Obriši') alert('Obrisano!');
             document.getElementById("custom-menu").style.display = "none";
         }
 
@@ -111,12 +118,22 @@
             let tbody = document.getElementById("table-body");
             let rCount = tbody.rows.length + 1;
             let row = tbody.insertRow();
-            row.innerHTML = `
-                <td>${rCount} <span class="menu-dots" onclick="prikaziMeni()">⋮</span></td>
-                <td contenteditable="true" oninput="izracunajSve()"></td>
-                <td contenteditable="true" oninput="izracunajSve()" class="vrijednost">0.00</td>
-                <td><span class="menu-dots" onclick="prikaziMeni()">⋮</span></td>
-            `;
+            
+            // Dinamički dodajemo onoliko ćelija koliko ima kolona
+            let colCount = document.getElementById("letters-row").cells.length;
+            
+            for(let i=0; i < colCount; i++) {
+                let cell = row.insertCell(i);
+                if(i === 0) cell.innerHTML = `${rCount} <span class="menu-dots" onclick="prikaziMeni()">⋮</span>`;
+                else if(i === 2) { 
+                    cell.className = "vrijednost"; 
+                    cell.contentEditable = "true"; 
+                    cell.oninput = izracunajSve; 
+                    cell.innerText = "0.00"; 
+                }
+                else if(i === colCount - 1) cell.innerHTML = `<span class="menu-dots" onclick="prikaziMeni()">⋮</span>`;
+                else cell.contentEditable = "true";
+            }
             izracunajSve();
         }
 
