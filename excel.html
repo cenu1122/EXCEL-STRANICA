@@ -2,86 +2,24 @@
 <html lang="bs">
 <head>
 <meta charset="UTF-8">
-<title>Inžinjerski Excel ULTRA</title>
+<title>Excel ULTRA PRO</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
-body {
-    font-family: sans-serif;
-    background: #f0f0f0;
-    margin: 0;
-    overflow-x: hidden;
-}
+body{font-family:sans-serif;margin:0;background:#f0f0f0}
+.toolbar{background:#217346;color:white;padding:10px;display:flex;gap:10px}
+button{padding:6px 12px;border:0;background:white;color:#217346;font-weight:bold}
 
-.toolbar {
-    background: #217346;
-    padding: 10px;
-    display: flex;
-    gap: 10px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    color: white;
-    align-items: center;
-}
+#table-container{height:90vh;overflow:auto;padding:10px}
 
-button {
-    padding: 8px 15px;
-    cursor: pointer;
-    border-radius: 4px;
-    border: none;
-    font-weight: bold;
-    background: white;
-    color: #217346;
-}
+table{border-collapse:collapse;background:white;user-select:none}
+td,th{border:1px solid #ccc;min-width:80px;height:25px;text-align:center}
 
-#table-container {
-    padding: 10px;
-    overflow: auto;
-    background: #f0f0f0;
-    height: 90vh;
-}
+th{background:#e2e2e2;position:sticky;top:0}
+.row-idx{background:#e2e2e2;position:sticky;left:0}
 
-table {
-    border-collapse: collapse;
-    background: white;
-    user-select: none;
-}
-
-td, th {
-    border: 1px solid #ccc;
-    min-width: 80px;
-    height: 25px;
-    font-size: 14px;
-    text-align: center;
-    outline: none;
-    padding: 2px;
-}
-
-th {
-    background: #e2e2e2;
-    position: sticky;
-    top: 0;
-}
-
-.row-idx {
-    background: #e2e2e2;
-    width: 40px;
-    position: sticky;
-    left: 0;
-    font-weight: bold;
-}
-
-td:focus {
-    border: 2px solid #217346;
-    background: #e8f5e9;
-}
-
-td.selected {
-    background: #c8e6c9 !important;
-    outline: 2px solid #217346;
-}
+td.selected, th.selected{background:#a5d6a7 !important}
 </style>
 </head>
 
@@ -90,205 +28,180 @@ td.selected {
 <div class="toolbar">
 <button onclick="addRow()">+ Red</button>
 <button onclick="addCol()">+ Kolona</button>
-<button onclick="savePDF()" style="background: gold; color: black; margin-left:auto;">PDF</button>
 </div>
 
 <div id="table-container">
-<table id="excelTable">
-<thead><tr id="header-row"></tr></thead>
-<tbody id="table-body"></tbody>
+<table>
+<thead><tr id="header"></tr></thead>
+<tbody id="body"></tbody>
 </table>
 </div>
 
 <script>
-let rows = 30;
-let cols = 10;
-let dataStore = {};
 
-let isSelecting = false;
-let startCell = null;
-let selectedCells = [];
+let rows=30, cols=10;
+let data={};
 
-function clearSelection() {
-    selectedCells.forEach(c => c.classList.remove('selected'));
-    selectedCells = [];
+let isSelecting=false;
+let startCell=null;
+let selected=[];
+
+function clearSel(){
+    selected.forEach(c=>c.classList.remove("selected"));
+    selected=[];
 }
 
-function init() {
+function build(){
 
-    const head = document.getElementById('header-row');
-    const body = document.getElementById('table-body');
+let h=document.getElementById("header");
+let b=document.getElementById("body");
 
-    head.innerHTML = '<th class="row-idx"></th>';
+h.innerHTML='<th class="row-idx"></th>';
 
-    for(let j=0;j<cols;j++){
-        let th = document.createElement('th');
-        th.innerText = String.fromCharCode(65+j);
-        head.appendChild(th);
-    }
+for(let j=0;j<cols;j++){
+    let th=document.createElement("th");
+    th.innerText=String.fromCharCode(65+j);
 
-    body.innerHTML = '';
-
-    for(let i=1;i<=rows;i++){
-        let tr = document.createElement('tr');
-        tr.innerHTML = `<td class="row-idx">${i}</td>`;
-
-        for(let j=0;j<cols;j++){
-            let id = String.fromCharCode(65+j)+i;
-
-            let td = document.createElement('td');
-            td.contentEditable = true;
-            td.id = id;
-            td.innerText = dataStore[id] || '';
-
-            td.addEventListener('paste', handlePaste);
-
-            td.onblur = () => {
-                dataStore[id] = td.innerText;
-                calculate();
-            };
-
-            // SELECT LOGIC
-            td.addEventListener('mousedown', (e) => {
-                isSelecting = true;
-                clearSelection();
-                startCell = td;
-                td.classList.add('selected');
-                selectedCells = [td];
-                e.preventDefault();
-            });
-
-            td.addEventListener('mouseover', () => {
-                if(!isSelecting) return;
-
-                clearSelection();
-
-                let startRow = startCell.parentElement.rowIndex;
-                let startCol = startCell.cellIndex;
-
-                let endRow = td.parentElement.rowIndex;
-                let endCol = td.cellIndex;
-
-                let minRow = Math.min(startRow,endRow);
-                let maxRow = Math.max(startRow,endRow);
-                let minCol = Math.min(startCol,endCol);
-                let maxCol = Math.max(startCol,endCol);
-
-                let rowsEl = document.getElementById('table-body').rows;
-
-                for(let i=minRow;i<=maxRow;i++){
-                    for(let j=minCol;j<=maxCol;j++){
-                        let cell = rowsEl[i].cells[j];
-                        if(cell && cell.contentEditable){
-                            cell.classList.add('selected');
-                            selectedCells.push(cell);
-                        }
-                    }
-                }
-            });
-
-            tr.appendChild(td);
+    th.onclick=()=>{
+        clearSel();
+        let bodyRows=b.rows;
+        for(let i=0;i<bodyRows.length;i++){
+            let cell=bodyRows[i].cells[j+1];
+            if(cell){cell.classList.add("selected");selected.push(cell);}
         }
+        th.classList.add("selected");
+    };
 
-        body.appendChild(tr);
-    }
+    h.appendChild(th);
 }
 
-// STOP SELECTION
-document.addEventListener('mouseup',()=>isSelecting=false);
+b.innerHTML="";
 
-// COPY / CUT
-document.addEventListener('keydown',(e)=>{
+for(let i=0;i<rows;i++){
+let tr=document.createElement("tr");
 
-    if(selectedCells.length===0) return;
+let idx=document.createElement("td");
+idx.className="row-idx";
+idx.innerText=i+1;
 
-    let rowsEl = document.getElementById('table-body').rows;
-
-    let minRow = Math.min(...selectedCells.map(c=>c.parentElement.rowIndex));
-    let maxRow = Math.max(...selectedCells.map(c=>c.parentElement.rowIndex));
-    let minCol = Math.min(...selectedCells.map(c=>c.cellIndex));
-    let maxCol = Math.max(...selectedCells.map(c=>c.cellIndex));
-
-    function buildText(){
-        let text="";
-        for(let i=minRow;i<=maxRow;i++){
-            let line=[];
-            for(let j=minCol;j<=maxCol;j++){
-                line.push(rowsEl[i].cells[j].innerText);
-            }
-            text+=line.join('\t')+'\n';
-        }
-        return text;
+idx.onclick=()=>{
+    clearSel();
+    let row=b.rows[i];
+    for(let c=1;c<row.cells.length;c++){
+        row.cells[c].classList.add("selected");
+        selected.push(row.cells[c]);
     }
+};
 
-    if(e.ctrlKey && e.key.toLowerCase()==='c'){
-        navigator.clipboard.writeText(buildText());
-    }
+tr.appendChild(idx);
 
-    if(e.ctrlKey && e.key.toLowerCase()==='x'){
-        navigator.clipboard.writeText(buildText());
-        selectedCells.forEach(c=>{
-            c.innerText='';
-            dataStore[c.id]='';
-        });
-    }
+for(let j=0;j<cols;j++){
+let td=document.createElement("td");
+td.contentEditable=true;
+
+td.onmousedown=()=>{
+    isSelecting=true;
+    clearSel();
+    startCell=td;
+    td.classList.add("selected");
+    selected=[td];
+};
+
+td.onmouseover=()=>{
+if(!isSelecting) return;
+
+clearSel();
+
+let sr=startCell.parentElement.rowIndex;
+let sc=startCell.cellIndex;
+
+let er=td.parentElement.rowIndex;
+let ec=td.cellIndex;
+
+let r1=Math.min(sr,er);
+let r2=Math.max(sr,er);
+let c1=Math.min(sc,ec);
+let c2=Math.max(sc,ec);
+
+let rowsEl=b.rows;
+
+for(let r=r1;r<=r2;r++){
+for(let c=c1;c<=c2;c++){
+let cell=rowsEl[r].cells[c];
+cell.classList.add("selected");
+selected.push(cell);
+}
+}
+};
+
+td.onblur=()=>data[td.innerText]=td.innerText;
+
+td.onpaste=(e)=>{
+e.preventDefault();
+let text=e.clipboardData.getData("text/plain");
+let lines=text.split("\n");
+
+let r0=td.parentElement.rowIndex;
+let c0=td.cellIndex;
+
+lines.forEach((line,i)=>{
+let cols=line.split("\t");
+
+cols.forEach((v,j)=>{
+let cell=b.rows[r0+i].cells[c0+j];
+if(cell){
+cell.innerText=v;
+data[cell]=v;
+}
 });
+});
+};
 
-// PASTE
-function handlePaste(e){
-    e.preventDefault();
-
-    let text = (e.clipboardData||window.clipboardData).getData('text/plain');
-    let lines = text.split(/\r?\n/);
-
-    let startCell = e.target;
-
-    let startRow = startCell.parentElement.rowIndex - 1;
-    let startCol = startCell.cellIndex;
-
-    lines.forEach((line,i)=>{
-        let cells=line.split('\t');
-
-        cells.forEach((val,j)=>{
-            let row=document.getElementById('table-body').rows[startRow+i];
-            if(!row) return;
-
-            let cell=row.cells[startCol+j];
-            if(!cell) return;
-
-            cell.innerText=val;
-            dataStore[cell.id]=val;
-        });
-    });
-
-    calculate();
+tr.appendChild(td);
 }
 
-// SIMPLE CALC
-function calculate(){
-    for(let id in dataStore){
-        let val=dataStore[id];
-        if(val && val.startsWith('=')){
-            try{
-                let formula=val.substring(1);
-
-                let expr=formula.replace(/[A-Z][0-9]+/g,(m)=>{
-                    let c=document.getElementById(m);
-                    return (c && !isNaN(c.innerText)) ? c.innerText : 0;
-                });
-
-                document.getElementById(id).innerText=eval(expr);
-
-            }catch(e){}
-        }
-    }
+b.appendChild(tr);
 }
 
-function addRow(){rows++;init();}
-function addCol(){cols++;init();}
-function savePDF(){html2pdf().from(document.getElementById('table-container')).save();}
+document.onmouseup=()=>isSelecting=false;
 
-init();
+document.onkeydown=(e)=>{
+if(selected.length==0) return;
+
+let b=document.getElementById("body");
+
+let minR=Math.min(...selected.map(x=>x.parentElement.rowIndex));
+let maxR=Math.max(...selected.map(x=>x.parentElement.rowIndex));
+let minC=Math.min(...selected.map(x=>x.cellIndex));
+let maxC=Math.max(...selected.map(x=>x.cellIndex));
+
+function txt(){
+let t="";
+for(let r=minR;r<=maxR;r++){
+let line=[];
+for(let c=minC;c<=maxC;c++){
+line.push(b.rows[r].cells[c].innerText);
+}
+t+=line.join("\t")+"\n";
+}
+return t;
+}
+
+if(e.ctrlKey && e.key=="c"){
+navigator.clipboard.writeText(txt());
+}
+
+if(e.ctrlKey && e.key=="x"){
+navigator.clipboard.writeText(txt());
+selected.forEach(x=>x.innerText="");
+}
+};
+
+function addRow(){rows++;build();}
+function addCol(){cols++;build();}
+
+build();
+
 </script>
 
 </body>
