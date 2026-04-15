@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moja Excel Stranica - Napredna</title>
+    <title>Moja Excel Stranica - Finalna Verzija</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
@@ -12,38 +12,32 @@
         .toolbar { margin-bottom: 20px; }
         button { 
             background: #555; color: white; border: none; 
-            padding: 15px 25px; font-size: 20px; font-weight: bold; 
+            padding: 12px 20px; font-size: 18px; font-weight: bold; 
             cursor: pointer; margin-right: 10px; border-radius: 4px;
         }
 
         table { border-collapse: collapse; table-layout: fixed; width: 100%; border: 1px solid #ccc; }
-        
-        /* Siva zaglavlja sa slovima */
         .header-letters { background: #e0e0e0; text-align: center; font-weight: bold; }
-        .header-letters td { 
-            border: 1px solid #ccc; height: 40px; position: relative; 
-        }
-
+        .header-letters td { border: 1px solid #ccc; height: 40px; position: relative; }
+        
         th, td { border: 1px solid #ccc; padding: 12px; font-size: 18px; position: relative; overflow: hidden; }
         th { background: #fff; text-align: left; }
 
-        /* Tri tackice */
-        .menu-dots { cursor: pointer; float: right; font-size: 20px; color: #666; }
+        .menu-dots { cursor: pointer; float: right; font-size: 20px; color: #888; margin-left: 10px; }
         .header-letters .menu-dots { position: absolute; right: 5px; top: 10px; }
 
-        /* RESIZER - linija za mijenjanje sirine */
         .resizer {
             position: absolute; right: 0; top: 0; width: 5px; height: 100%;
-            cursor: col-resize; user-select: none;
+            cursor: col-resize; user-select: none; z-index: 10;
         }
         .resizer:hover { background: #0078d4; }
 
         #custom-menu {
             display: none; position: absolute; background: white; 
             border: 1px solid #000; box-shadow: 4px 4px 10px rgba(0,0,0,0.2); 
-            z-index: 1000; min-width: 160px;
+            z-index: 1000; min-width: 180px;
         }
-        #custom-menu div { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 18px; display: flex; align-items: center; gap: 10px; }
+        #custom-menu div { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 16px; display: flex; align-items: center; gap: 10px; }
         #custom-menu div:hover { background: #f0f0f0; }
         
         .total-row { background: #f5f5f5; font-weight: bold; }
@@ -52,26 +46,25 @@
 <body>
 
     <div class="toolbar">
-        <button onclick="addRow()">➕ Dodaj Red</button>
-        <button onclick="addCol()">➕ Dodaj Kolonu</button>
-        <button onclick="exportToExcel()">📊 Excel</button>
-        <button onclick="exportToPDF()">📄 PDF</button>
+        <button onclick="addRow()">➕ Dodaj novi red na dno</button>
+        <button onclick="addCol()">➕ Dodaj novu kolonu</button>
+        <button onclick="exportToExcel()">📊 Snimi Excel</button>
     </div>
 
     <table id="myTable">
         <thead>
             <tr class="header-letters" id="letters-row">
-                <td style="width: 80px;"></td>
-                <td style="width: 200px;">A <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span><div class="resizer"></div></td>
+                <td style="width: 70px;"></td>
+                <td style="width: 250px;">A <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span><div class="resizer"></div></td>
                 <td style="width: 150px;">B <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span><div class="resizer"></div></td>
                 <td style="width: 150px;">C <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span><div class="resizer"></div></td>
                 <td style="width: 50px;"></td>
             </tr>
             <tr>
-                <th>ID <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></th>
-                <th>Naziv Stavke <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></th>
-                <th>Vrijednost (KM) <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></th>
-                <th><span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></th>
+                <th>ID</th>
+                <th>Naziv Stavke</th>
+                <th>Vrijednost (KM)</th>
+                <th></th>
             </tr>
         </thead>
         <tbody id="table-body">
@@ -84,7 +77,7 @@
         </tbody>
         <tfoot>
             <tr class="total-row">
-                <td colspan="2" style="text-align: right;">UKUPNO (KM):</td>
+                <td colspan="2" style="text-align: right;">UKUPNO:</td>
                 <td id="ukupno-polje">100.00</td>
                 <td></td>
             </tr>
@@ -92,42 +85,47 @@
     </table>
 
     <div id="custom-menu">
-        <div onclick="izvrsiUredi()">📝 Uredi</div>
-        <div onclick="izvrsiKopiraj()">📋 Kopiraj</div>
-        <div id="paste-option" onclick="izvrsiZalijepi()" style="display: none;">📥 Zalijepi</div>
-        <div onclick="izvrsiObrisi()" style="color: red;">🗑️ Obriši</div>
+        <div onclick="dodajRedIspod()">➕ Dodaj red ispod</div>
+        <div onclick="izvrsiKopiraj()">📋 Kopiraj podatke</div>
+        <div id="paste-option" onclick="izvrsiZalijepi()" style="display: none;">📥 Zalijepi (Paste)</div>
+        <div onclick="izvrsiObrisi()" style="color: red; font-weight: bold;">🗑️ Obriši cijeli red</div>
     </div>
 
     <script>
-        let trenutniElement = null;
+        let selektovaniRed = null;
         let kopiraniPodaci = null;
 
-        // --- FUNKCIJA ZA PROŠIRIVANJE KOLONA ---
+        // --- RESIZER LOGIKA ---
         function initResizers() {
-            const resizers = document.querySelectorAll('.resizer');
-            resizers.forEach(resizer => {
-                resizer.addEventListener('mousedown', function(e) {
-                    const el = e.target.parentElement;
-                    const startX = e.pageX;
-                    const startWidth = el.offsetWidth;
-
-                    function onMouseMove(e) {
-                        el.style.width = (startWidth + (e.pageX - startX)) + 'px';
-                    }
-
-                    function onMouseUp() {
-                        document.removeEventListener('mousemove', onMouseMove);
-                        document.removeEventListener('mouseup', onMouseUp);
-                    }
-
-                    document.addEventListener('mousemove', onMouseMove);
-                    document.addEventListener('mouseup', onMouseUp);
-                });
+            document.querySelectorAll('.resizer').forEach(resizer => {
+                resizer.onmousedown = function(e) {
+                    let el = e.target.parentElement;
+                    let startX = e.pageX;
+                    let startWidth = el.offsetWidth;
+                    document.onmousemove = (e) => el.style.width = (startWidth + (e.pageX - startX)) + 'px';
+                    document.onmouseup = () => { document.onmousemove = null; document.onmouseup = null; };
+                };
             });
         }
         initResizers();
 
-        // --- LOGIKA MENIJA I RAČUNANJA ---
+        // --- MENI I FUNKCIJE ---
+        function prikaziMeni(el) {
+            let menu = document.getElementById("custom-menu");
+            let pasteOpt = document.getElementById("paste-option");
+            let e = window.event;
+            e.stopPropagation();
+            
+            selektovaniRed = el.closest('tr');
+            pasteOpt.style.display = kopiraniPodaci ? "flex" : "none";
+            
+            menu.style.display = "block";
+            menu.style.left = e.pageX + "px";
+            menu.style.top = e.pageY + "px";
+        }
+
+        window.onclick = () => document.getElementById("custom-menu").style.display = "none";
+
         function izracunajSve() {
             let suma = 0;
             document.querySelectorAll('.vrijednost').forEach(p => {
@@ -136,43 +134,40 @@
             document.getElementById('ukupno-polje').innerText = suma.toFixed(2);
         }
 
-        function prikaziMeni(el) {
-            let menu = document.getElementById("custom-menu");
-            let pasteOpt = document.getElementById("paste-option");
-            let e = window.event;
-            e.stopPropagation();
-            trenutniElement = el.closest('tr');
-            pasteOpt.style.display = kopiraniPodaci ? "flex" : "none";
-            menu.style.display = "block";
-            menu.style.left = e.pageX + "px";
-            menu.style.top = e.pageY + "px";
+        function dodajRedIspod() {
+            if (!selektovaniRed || selektovaniRed.parentNode.tagName !== 'TBODY') return;
+            let noviRed = selektovaniRed.cloneNode(true);
+            noviRed.querySelectorAll('td').forEach((td, i) => {
+                if(i === 1) td.innerText = "";
+                if(i === 2) td.innerText = "0.00";
+            });
+            selektovaniRed.after(noviRed);
+            reindex();
         }
 
-        window.onclick = function() { document.getElementById("custom-menu").style.display = "none"; }
+        function izvrsiObrisi() {
+            if (selektovaniRed && selektovaniRed.parentNode.tagName === 'TBODY') {
+                selektovaniRed.remove();
+                reindex();
+                izracunajSve();
+            }
+        }
 
         function izvrsiKopiraj() {
-            if (trenutniElement && trenutniElement.parentNode.tagName === 'TBODY') {
-                kopiraniPodaci = { n: trenutniElement.cells[1].innerText, v: trenutniElement.cells[2].innerText };
+            if (selektovaniRed && selektovaniRed.parentNode.tagName === 'TBODY') {
+                kopiraniPodaci = { n: selektovaniRed.cells[1].innerText, v: selektovaniRed.cells[2].innerText };
             }
         }
 
         function izvrsiZalijepi() {
-            if (trenutniElement && kopiraniPodaci && trenutniElement.parentNode.tagName === 'TBODY') {
-                trenutniElement.cells[1].innerText = kopiraniPodaci.n;
-                trenutniElement.cells[2].innerText = kopiraniPodaci.v;
+            if (selektovaniRed && kopiraniPodaci) {
+                selektovaniRed.cells[1].innerText = kopiraniPodaci.n;
+                selektovaniRed.cells[2].innerText = kopiraniPodaci.v;
                 izracunajSve();
             }
         }
 
-        function izvrsiObrisi() {
-            if (trenutniElement && trenutniElement.parentNode.tagName === 'TBODY') {
-                trenutniElement.remove();
-                reindexID();
-                izracunajSve();
-            }
-        }
-
-        function reindexID() {
+        function reindex() {
             document.querySelectorAll("#table-body tr").forEach((row, i) => {
                 row.cells[0].innerHTML = (i + 1) + ` <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span>`;
             });
@@ -180,34 +175,26 @@
 
         function addRow() {
             let tbody = document.getElementById("table-body");
-            let rCount = tbody.rows.length + 1;
             let row = tbody.insertRow();
-            row.innerHTML = `
-                <td>${rCount} <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>
-                <td contenteditable="true" oninput="izracunajSve()"></td>
-                <td contenteditable="true" oninput="izracunajSve()" class="vrijednost">0.00</td>
-                <td><span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>
-            `;
-            izracunajSve();
+            row.innerHTML = `<td></td><td contenteditable="true" oninput="izracunajSve()"></td><td contenteditable="true" oninput="izracunajSve()" class="vrijednost">0.00</td><td><span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>`;
+            reindex();
         }
 
         function addCol() {
             let lRow = document.getElementById("letters-row");
             let table = document.getElementById("myTable");
             let cIndex = lRow.cells.length - 1;
-            let nextLetter = String.fromCharCode(64 + cIndex);
-            let cell = lRow.insertCell(cIndex);
-            cell.innerHTML = `${nextLetter} <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span><div class="resizer"></div>`;
+            let letterCell = lRow.insertCell(cIndex);
+            letterCell.innerHTML = String.fromCharCode(64 + cIndex) + ` <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span><div class="resizer"></div>`;
             for (let i = 1; i < table.rows.length - 1; i++) {
                 let c = table.rows[i].insertCell(cIndex);
                 if (i === 1) c.outerHTML = `<th>Nova <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></th>`;
                 else c.contentEditable = "true";
             }
-            initResizers(); // Ponovo aktiviraj resizere za novu kolonu
+            initResizers();
         }
 
-        function exportToExcel() { XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById("myTable")), "tabela.xlsx"); }
-        function exportToPDF() { const { jsPDF } = window.jspdf; let doc = new jsPDF(); doc.autoTable({ html: '#myTable' }); doc.save("tabela.pdf"); }
+        function exportToExcel() { XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById("myTable")), "izvjestaj.xlsx"); }
     </script>
 </body>
 </html>
