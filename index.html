@@ -3,64 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Word - Full Formatting</title>
+    <title>Web Pisala PRO</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body {
-            background-color: #e9ecef;
+            background-color: #525659;
             display: flex;
             flex-direction: column;
             align-items: center;
             margin: 0;
-            font-family: 'Times New Roman', Times, serif; /* Klasika za dokumente */
+            font-family: 'Times New Roman', serif;
         }
 
+        /* TRAKA SA ALATIMA KOJA TI NEDOSTAJE */
         .toolbar {
             position: sticky;
             top: 0;
             background: #ffffff;
             width: 100%;
-            padding: 10px;
+            padding: 15px;
             display: flex;
             justify-content: center;
-            gap: 10px;
+            gap: 15px;
             flex-wrap: wrap;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             z-index: 1000;
-            border-bottom: 2px solid #2b579a;
+            border-bottom: 3px solid #2b579a;
         }
 
         .group {
             display: flex;
-            gap: 5px;
-            border-right: 1px solid #ccc;
-            padding: 0 10px;
+            gap: 8px;
+            border-right: 2px solid #ddd;
+            padding-right: 15px;
         }
 
         button, select {
-            padding: 8px 12px;
+            padding: 10px 15px;
             cursor: pointer;
             border: 1px solid #ccc;
-            background: white;
-            border-radius: 4px;
+            background: #f8f9fa;
+            border-radius: 5px;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 16px; /* Veće za TV */
         }
 
         button:hover {
-            background: #f0f0f0;
+            background: #e2e6ea;
             border-color: #2b579a;
         }
 
-        .btn-save {
-            background-color: #1a73e8;
+        .btn-pdf {
+            background-color: #2b579a;
             color: white;
             border: none;
-            padding: 8px 20px;
         }
 
+        /* PAPIR */
         #editor-container {
-            padding: 30px 0;
+            padding: 40px 0;
         }
 
         #document-page {
@@ -68,14 +69,13 @@
             width: 210mm;
             min-height: 297mm;
             padding: 25mm;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
             outline: none;
-            font-size: 16px;
+            font-size: 18px;
             line-height: 1.6;
             color: black;
             box-sizing: border-box;
-            text-align: justify; /* Podrazumijevano poravnanje */
-            white-space: pre-wrap; /* Čuva razmake */
+            text-align: left;
         }
 
         @media screen and (max-width: 850px) {
@@ -87,34 +87,32 @@
 
     <div class="toolbar">
         <div class="group">
-            <button onclick="execCmd('bold')" title="Podebljano">B</button>
-            <button onclick="execCmd('italic')" title="Ukoso">I</button>
-            <button onclick="execCmd('underline')" title="Podvučeno">U</button>
+            <button onclick="execCmd('bold')">B</button>
+            <button onclick="execCmd('italic')">I</button>
+            <button onclick="execCmd('underline')">U</button>
         </div>
 
         <div class="group">
-            <button onclick="execCmd('justifyLeft')">⬅ Lijevo</button>
-            <button onclick="execCmd('justifyCenter')">↔ Centar</button>
-            <button onclick="execCmd('justifyRight')">Desno ➡</button>
-            <button onclick="execCmd('justifyFull')" style="background: #eef2f7;">≡ Obostrano</button>
+            <button onclick="execCmd('justifyLeft')">Lijevo</button>
+            <button onclick="execCmd('justifyCenter')">Centar</button>
+            <button onclick="execCmd('justifyFull')">OBOSTRANO (Justify)</button>
         </div>
 
         <div class="group">
             <select onchange="execCmd('fontSize', this.value)">
-                <option value="3">Veličina slova</option>
-                <option value="2">Mala</option>
-                <option value="3">Normalna</option>
-                <option value="5">Velika</option>
-                <option value="7">Naslov</option>
+                <option value="3">Veličina</option>
+                <option value="4">Naslov 3</option>
+                <option value="5">Naslov 2</option>
+                <option value="6">Naslov 1</option>
             </select>
         </div>
 
-        <button class="btn-save" onclick="downloadPDF()">SAČUVAJ KAO PDF</button>
+        <button class="btn-pdf" onclick="downloadPDF()">SAČUVAJ KAO PDF</button>
     </div>
 
     <div id="editor-container">
         <div id="document-page" contenteditable="true">
-            Počnite kucati ovdje. Koristite dugme "Obostrano" da poravnate tekst na obe ivice...
+            Sada ćeš ovdje vidjeti sve opcije iznad...
         </div>
     </div>
 
@@ -123,21 +121,13 @@
             document.execCommand(command, false, value);
         }
 
-        // Dozvoljava TAB taster za uvlačenje reda
-        document.getElementById('document-page').addEventListener('keydown', function(e) {
-            if (e.key === 'Tab') {
-                e.preventDefault();
-                document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
-            }
-        });
-
         function downloadPDF() {
             const element = document.getElementById('document-page');
             const opt = {
-                margin:       [10, 10, 10, 10],
-                filename:     'dokument.pdf',
+                margin:       10,
+                filename:     'moj_dokument.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, letterRendering: true },
+                html2canvas:  { scale: 2 },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
             html2pdf().set(opt).from(element).save();
