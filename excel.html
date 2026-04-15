@@ -9,10 +9,10 @@
         .toolbar { background: #217346; color: white; padding: 10px; display: flex; gap: 10px; position: sticky; top: 0; z-index: 1000; }
         button { padding: 8px 15px; border: 0; border-radius: 4px; background: white; color: #217346; font-weight: bold; cursor: pointer; }
         #table-container { height: calc(100vh - 60px); overflow: auto; padding: 10px; }
-        table { border-collapse: collapse; background: white; user-select: none; }
+        table { border-collapse: collapse; background: white; user-select: none; width: 100%; }
         td, th { border: 1px solid #ccc; min-width: 100px; height: 30px; text-align: center; outline: none; font-size: 16px; }
         th { background: #e2e2e2; position: sticky; top: 0; z-index: 10; }
-        .row-idx { background: #e2e2e2; width: 40px; font-weight: bold; position: sticky; left: 0; z-index: 5; }
+        .row-idx { background: #e2e2e2; width: 45px; font-weight: bold; position: sticky; left: 0; z-index: 5; }
         td.selected { background: #e8f5e9 !important; border: 2px solid #217346 !important; }
         .active-input { background: #fffde7 !important; border: 2px solid #217346 !important; }
     </style>
@@ -20,29 +20,30 @@
 <body>
 
 <div class="toolbar">
-    <button onclick="addRow()">+ Red</button>
-    <button onclick="addCol()">+ Kolona</button>
-    <button onclick="savePDF()" style="background: gold; color: black; margin-left: auto;">SAČUVAJ PDF</button>
+    <button onclick="addRow()">+ Dodaj Red</button>
+    <button onclick="addCol()">+ Dodaj Kolonu</button>
+    <button onclick="savePDF()" style="background: gold; color: black; margin-left: auto;">SAČUVAJ KAO PDF</button>
 </div>
 
 <div id="table-container">
-    <table>
+    <table id="mainTable">
         <thead><tr id="header"></tr></thead>
         <tbody id="body"></tbody>
     </table>
 </div>
 
 <script>
-let rows = 40, cols = 12;
-let dataStore = {}; // Čuva formule i brojeve
-let results = {};   // Čuva rezultate
+// OVDJE SAM STAVIO 100 REDOVA KAO ŠTO SI TRAŽIO
+let rows = 100, cols = 15;
+let dataStore = {}; 
+let results = {};   
 let isSelecting = false;
 let anchorCell = null;
 
 function build() {
     const h = document.getElementById("header");
     const b = document.getElementById("body");
-    h.innerHTML = '<th class="row-idx"></th>';
+    h.innerHTML = '<th class="row-idx">ID</th>';
     for(let j=0; j<cols; j++) {
         let th = document.createElement("th");
         th.innerText = String.fromCharCode(65 + j);
@@ -115,15 +116,15 @@ document.onmouseup = () => isSelecting = false;
 document.onpaste = (e) => {
     e.preventDefault();
     let text = e.clipboardData.getData("text/plain");
-    let lines = text.split("\n");
+    let lines = text.split(/\r?\n/);
     let active = document.activeElement;
     if(!active || active.tagName !== "TD") return;
     let r0 = active.parentElement.rowIndex - 1;
     let c0 = active.cellIndex;
     let body = document.getElementById("body");
     lines.forEach((line, i) => {
-        let cols = line.split("\t");
-        cols.forEach((v, j) => {
+        let cells = line.split("\t");
+        cells.forEach((v, j) => {
             let cell = body.rows[r0 + i]?.cells[c0 + j];
             if(cell) {
                 cell.innerText = v.trim();
@@ -135,24 +136,22 @@ document.onpaste = (e) => {
 };
 
 function calculate() {
-    // 1. Prvo prepiši sve što nisu formule
     for(let id in dataStore) {
         if(!dataStore[id].startsWith('=')) results[id] = dataStore[id];
     }
-    // 2. Izračunaj formule
     for(let id in dataStore) {
         let val = dataStore[id];
         if(val.startsWith('=')) {
             try {
                 let formula = val.substring(1).toUpperCase();
                 let processed = formula.replace(/[A-Z][0-9]+/g, (match) => {
-                    return parseFloat(results[match]) || 0;
+                    let res = results[match] || 0;
+                    return isNaN(res) ? 0 : res;
                 });
                 results[id] = eval(processed);
             } catch(e) { results[id] = "#ERR"; }
         }
     }
-    // 3. Prikaz
     for(let id in results) {
         let el = document.getElementById(id);
         if(el && el !== document.activeElement) el.innerText = results[id];
@@ -161,7 +160,10 @@ function calculate() {
 
 function addRow() { rows++; build(); calculate(); }
 function addCol() { cols++; build(); calculate(); }
-function savePDF() { html2pdf().from(document.querySelector("table")).save(); }
+function savePDF() { 
+    const element = document.getElementById('table-container');
+    html2pdf().from(element).set({ margin: 5, filename: 'proracun.pdf', jsPDF: { orientation: 'landscape' } }).save(); 
+}
 
 build();
 </script>
