@@ -2,231 +2,121 @@
 <html lang="bs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Excel PRO - Tabele i Slike</title>
+    <title>Pametni Web Excel</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background-color: #e6e6e6;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        /* Traka sa alatima - Excel Stil (Zelena) */
-        .toolbar {
-            position: sticky;
-            top: 0;
-            background: #ffffff;
-            width: 100%;
-            padding: 15px;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 1000;
-            border-bottom: 4px solid #217346;
-        }
-
-        .group {
-            display: flex;
-            gap: 5px;
-            border-right: 2px solid #ddd;
-            padding-right: 10px;
-            align-items: center;
-        }
-
-        button {
-            padding: 10px 15px;
-            cursor: pointer;
-            border: 1px solid #ccc;
-            background: #f8f9fa;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        button:hover {
-            background: #e2e6ea;
-        }
-
-        .btn-add {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-            border-color: #2e7d32;
-        }
-
-        .btn-img {
-            background-color: #fff3e0;
-            color: #ef6c00;
-            border-color: #ef6c00;
-        }
-
-        .btn-pdf {
-            background-color: #217346;
-            color: white;
-            border: none;
-        }
-
-        /* Kontejner za tabelu */
-        #table-container {
-            background-color: white;
-            margin: 30px;
-            padding: 20px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            min-width: 90%;
-            overflow-x: auto;
-        }
-
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            background: white;
-        }
-
-        th, td {
-            border: 1px solid #bbb;
-            padding: 12px;
-            min-width: 120px;
-            text-align: left;
-            outline: none;
-            font-size: 16px;
-        }
-
-        th {
-            background-color: #f4f4f4;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        /* Slike unutar ćelija */
-        td img {
-            max-width: 150px;
-            display: block;
-            margin: 5px auto;
-            border-radius: 3px;
-        }
-
-        @media print {
-            .toolbar { display: none; }
-        }
+        body { font-family: sans-serif; background: #e6e6e6; margin: 0; padding-bottom: 50px; }
+        .toolbar { position: sticky; top: 0; background: #217346; padding: 10px; display: flex; gap: 10px; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        button { padding: 8px 15px; cursor: pointer; border-radius: 4px; border: none; font-weight: bold; background: white; color: #217346; }
+        
+        .spreadsheet { display: grid; grid-template-columns: 40px repeat(10, 1fr); background: #bbb; gap: 1px; border: 1px solid #bbb; margin: 20px; }
+        .cell { background: white; padding: 5px; min-height: 25px; outline: none; font-size: 14px; overflow: hidden; }
+        .header-cell { background: #f4f4f4; text-align: center; font-weight: bold; color: #666; cursor: default; }
+        
+        /* Stil za slike u ćelijama */
+        .cell img { max-width: 100px; display: block; margin: 2px auto; }
+        .selected { border: 2px solid #217346 !important; z-index: 5; }
     </style>
 </head>
 <body>
 
-    <div class="toolbar">
-        <div class="group">
-            <button class="btn-add" onclick="addRow()">+ Dodaj Red</button>
-            <button class="btn-add" onclick="addColumn()">+ Dodaj Kolonu</button>
+<div class="toolbar">
+    <button onclick="addRow()">+ Dodaj Red</button>
+    <button onclick="addCol()">+ Dodaj Kolonu</button>
+    <button onclick="document.getElementById('imgInp').click()">📷 UBACI SLIKU</button>
+    <button onclick="generatePDF()" style="margin-left: auto; background: gold;">SAČUVAJ KAO PDF</button>
+    <input type="file" id="imgInp" hidden accept="image/*" onchange="putImage(event)">
+</div>
+
+<div id="pdf-area">
+    <div class="spreadsheet" id="grid">
+        <div class="header-cell"></div>
+        <div class="header-cell">A</div><div class="header-cell">B</div><div class="header-cell">C</div>
+        <div class="header-cell">D</div><div class="header-cell">E</div><div class="header-cell">F</div>
+        <div class="header-cell">G</div><div class="header-cell">H</div><div class="header-cell">I</div>
+        <div class="header-cell">J</div>
+
         </div>
+</div>
 
-        <div class="group">
-            <button onclick="execCmd('bold')">B</button>
-            <button onclick="execCmd('justifyCenter')">Centriraj</button>
-        </div>
+<script>
+    const grid = document.getElementById('grid');
+    let rows = 15; 
+    let cols = 10;
+    let data = {}; // Ovdje čuvamo vrijednosti
 
-        <div class="group">
-            <input type="file" id="imageInput" hidden accept="image/*" onchange="insertImageIntoCell(event)">
-            <button class="btn-img" onclick="triggerImageInput()">📷 UBACI SLIKU U ĆELIJU</button>
-        </div>
-
-        <button class="btn-pdf" onclick="saveAsPDF()">SAČUVAJ KAO PDF (Landscape)</button>
-    </div>
-
-    <div id="table-container">
-        <table id="excelTable">
-            <thead>
-                <tr>
-                    <th contenteditable="true">Stavka</th>
-                    <th contenteditable="true">Opis / Specifikacija</th>
-                    <th contenteditable="true">Količina</th>
-                    <th contenteditable="true">Napomena / Slika</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td contenteditable="true"></td>
-                    <td contenteditable="true"></td>
-                    <td contenteditable="true"></td>
-                    <td contenteditable="true"></td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-    <script>
-        function execCmd(command) {
-            document.execCommand(command, false, null);
+    function createGrid() {
+        grid.innerHTML = '';
+        // Headeri (Slova)
+        grid.style.gridTemplateColumns = `40px repeat(${cols}, 1fr)`;
+        grid.appendChild(createDiv('', 'header-cell'));
+        for (let i = 0; i < cols; i++) {
+            grid.appendChild(createDiv(String.fromCharCode(65 + i), 'header-cell'));
         }
 
-        function addRow() {
-            const table = document.getElementById("excelTable").getElementsByTagName('tbody')[0];
-            const newRow = table.insertRow();
-            const colCount = document.getElementById("excelTable").rows[0].cells.length;
-            for(let i=0; i<colCount; i++) {
-                let cell = newRow.insertCell(i);
-                cell.contentEditable = "true";
+        // Podaci
+        for (let r = 1; r <= rows; r++) {
+            grid.appendChild(createDiv(r, 'header-cell')); // Broj reda
+            for (let c = 0; c < cols; c++) {
+                const id = String.fromCharCode(65 + c) + r;
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.contentEditable = true;
+                cell.id = id;
+                cell.onblur = () => updateCell(id, cell.innerText);
+                cell.onfocus = () => { if(data[id]) cell.innerText = data[id]; };
+                grid.appendChild(cell);
             }
         }
+    }
 
-        function addColumn() {
-            const table = document.getElementById("excelTable");
-            for(let i=0; i<table.rows.length; i++) {
-                let cell = table.rows[i].insertCell(-1);
-                cell.contentEditable = "true";
-                if(i === 0) {
-                    cell.outerHTML = `<th contenteditable="true">Nova Kolona</th>`;
+    function createDiv(text, cls) {
+        const div = document.createElement('div');
+        div.className = cls;
+        div.innerText = text;
+        return div;
+    }
+
+    function updateCell(id, val) {
+        data[id] = val;
+        if (val.startsWith('=')) {
+            try {
+                // Jednostavno računanje npr =A1+B1
+                let formula = val.substring(1).toUpperCase();
+                for (let cellId in data) {
+                    if (formula.includes(cellId)) {
+                        formula = formula.replace(new RegExp(cellId, 'g'), data[cellId] || 0);
+                    }
                 }
-            }
+                document.getElementById(id).innerText = eval(formula);
+            } catch (e) { document.getElementById(id).innerText = "#GREŠKA"; }
         }
+    }
 
-        let currentTargetCell = null;
+    function addRow() { rows++; createGrid(); }
+    function addCol() { cols++; createGrid(); }
 
-        function triggerImageInput() {
-            // Pronalazi ćeliju u kojoj se trenutno nalazi kursor
-            const selection = window.getSelection();
-            if (selection.rangeCount > 0) {
-                let node = selection.anchorNode;
-                while (node && node.nodeName !== "TD") {
-                    node = node.parentNode;
-                }
-                if (node) {
-                    currentTargetCell = node;
-                    document.getElementById('imageInput').click();
-                } else {
-                    alert("Kliknite prvo u ćeliju gdje želite sliku!");
-                }
-            }
-        }
+    function putImage(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        const active = document.activeElement;
+        if(active.className !== 'cell') return alert("Klikni na ćeliju prvo!");
+        
+        reader.onload = (ev) => {
+            const img = document.createElement('img');
+            img.src = ev.target.result;
+            active.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+    }
 
-        function insertImageIntoCell(event) {
-            const file = event.target.files[0];
-            if (file && currentTargetCell) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = document.createElement("img");
-                    img.src = e.target.result;
-                    currentTargetCell.appendChild(img);
-                };
-                reader.readAsDataURL(file);
-            }
-        }
+    function generatePDF() {
+        const el = document.getElementById('pdf-area');
+        html2pdf().set({ margin: 5, filename: 'tabela.pdf', jsPDF: { orientation: 'landscape' } }).from(el).save();
+    }
 
-        function saveAsPDF() {
-            const element = document.getElementById('table-container');
-            const opt = {
-                margin:       5,
-                filename:     'tabela_izvjestaj.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-            };
-            html2pdf().set(opt).from(element).save();
-        }
-    </script>
+    createGrid(); // Pokreni pri učitavanju
+</script>
 
 </body>
 </html>
