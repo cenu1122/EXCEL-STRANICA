@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Pisala PRO</title>
+    <title>Web Pisala PRO - Slike i Justify</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body {
@@ -15,7 +15,7 @@
             font-family: 'Times New Roman', serif;
         }
 
-        /* TRAKA SA ALATIMA KOJA TI NEDOSTAJE */
+        /* Traka sa alatima prilagođena za TV */
         .toolbar {
             position: sticky;
             top: 0;
@@ -24,7 +24,7 @@
             padding: 15px;
             display: flex;
             justify-content: center;
-            gap: 15px;
+            gap: 12px;
             flex-wrap: wrap;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             z-index: 1000;
@@ -36,6 +36,7 @@
             gap: 8px;
             border-right: 2px solid #ddd;
             padding-right: 15px;
+            align-items: center;
         }
 
         button, select {
@@ -45,12 +46,18 @@
             background: #f8f9fa;
             border-radius: 5px;
             font-weight: bold;
-            font-size: 16px; /* Veće za TV */
+            font-size: 16px;
         }
 
         button:hover {
             background: #e2e6ea;
             border-color: #2b579a;
+        }
+
+        .btn-img {
+            background-color: #e1f5fe;
+            color: #01579b;
+            border: 1px solid #01579b;
         }
 
         .btn-pdf {
@@ -59,23 +66,31 @@
             border: none;
         }
 
-        /* PAPIR */
+        /* Izgled Word stranice */
         #editor-container {
             padding: 40px 0;
         }
 
         #document-page {
             background-color: white;
-            width: 210mm;
-            min-height: 297mm;
-            padding: 25mm;
+            width: 210mm; /* A4 širina */
+            min-height: 297mm; /* A4 visina */
+            padding: 25mm; /* Margine */
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
             outline: none;
             font-size: 18px;
             line-height: 1.6;
             color: black;
             box-sizing: border-box;
-            text-align: left;
+            text-align: justify; /* Početno obostrano poravnanje */
+        }
+
+        /* Stil za slike unutar dokumenta */
+        #document-page img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 10px auto;
         }
 
         @media screen and (max-width: 850px) {
@@ -95,16 +110,19 @@
         <div class="group">
             <button onclick="execCmd('justifyLeft')">Lijevo</button>
             <button onclick="execCmd('justifyCenter')">Centar</button>
-            <button onclick="execCmd('justifyFull')">OBOSTRANO (Justify)</button>
+            <button onclick="execCmd('justifyFull')">OBOSTRANO</button>
         </div>
 
         <div class="group">
             <select onchange="execCmd('fontSize', this.value)">
                 <option value="3">Veličina</option>
-                <option value="4">Naslov 3</option>
-                <option value="5">Naslov 2</option>
-                <option value="6">Naslov 1</option>
+                <option value="4">Srednja</option>
+                <option value="5">Velika</option>
+                <option value="6">Naslov</option>
             </select>
+            
+            <input type="file" id="imageInput" hidden accept="image/*" onchange="insertImage(event)">
+            <button class="btn-img" onclick="document.getElementById('imageInput').click()">📷 UBACI SLIKU</button>
         </div>
 
         <button class="btn-pdf" onclick="downloadPDF()">SAČUVAJ KAO PDF</button>
@@ -112,24 +130,42 @@
 
     <div id="editor-container">
         <div id="document-page" contenteditable="true">
-            Sada ćeš ovdje vidjeti sve opcije iznad...
+            Počnite kucati svoj tekst ovdje... Koristite dugmad iznad za formatiranje i ubacivanje slika.
         </div>
     </div>
 
     <script>
+        // Funkcija za komande teksta
         function execCmd(command, value = null) {
             document.execCommand(command, false, value);
         }
 
+        // Funkcija za obradu i ubacivanje slike
+        function insertImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imgTag = `<img src="${e.target.result}" alt="slika">`;
+                    // Ubacuje sliku tamo gdje je kursor
+                    document.execCommand('insertHTML', false, imgTag + '<br>');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Funkcija za pretvaranje u PDF
         function downloadPDF() {
             const element = document.getElementById('document-page');
             const opt = {
                 margin:       10,
                 filename:     'moj_dokument.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
+                html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
+            
+            // Pokreni snimanje
             html2pdf().set(opt).from(element).save();
         }
     </script>
