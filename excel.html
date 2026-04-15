@@ -2,60 +2,69 @@
 <html lang="bs">
 <head>
     <meta charset="UTF-8">
-    <title>Inžinjerski Excel ULTRA PRO</title>
+    <title>Inžinjerski Excel PRO v5</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body { font-family: sans-serif; margin: 0; background: #f0f0f0; }
         .toolbar { background: #217346; color: white; padding: 10px; display: flex; gap: 10px; position: sticky; top: 0; z-index: 1000; }
         button { padding: 8px 15px; border: 0; border-radius: 4px; background: white; color: #217346; font-weight: bold; cursor: pointer; }
         #table-container { height: calc(100vh - 60px); overflow: auto; padding: 10px; }
-        table { border-collapse: collapse; background: white; user-select: none; width: 100%; }
-        td, th { border: 1px solid #ccc; min-width: 100px; height: 30px; text-align: center; outline: none; font-size: 16px; }
-        th { background: #e2e2e2; position: sticky; top: 0; z-index: 10; }
-        .row-idx { background: #e2e2e2; width: 45px; font-weight: bold; position: sticky; left: 0; z-index: 5; }
-        td.selected { background: #e8f5e9 !important; border: 2px solid #217346 !important; }
-        .active-input { background: #fffde7 !important; border: 2px solid #217346 !important; }
+        table { border-collapse: collapse; background: white; user-select: none; }
+        td, th { border: 1px solid #ccc; min-width: 110px; height: 30px; text-align: center; outline: none; font-size: 16px; position: relative; }
+        th { background: #e2e2e2; position: sticky; top: 0; z-index: 10; cursor: pointer; }
+        th:hover { background: #d0d0d0; }
+        .row-idx { background: #e2e2e2; width: 50px; font-weight: bold; position: sticky; left: 0; z-index: 5; cursor: pointer; }
+        .row-idx:hover { background: #d0d0d0; }
+        
+        /* Stilovi za selekciju */
+        .selected { background: #c8e6c9 !important; }
+        .active-cell { border: 2px solid #217346 !important; background: #fffde7 !important; z-index: 20; }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <button onclick="addRow()">+ Dodaj Red</button>
-    <button onclick="addCol()">+ Dodaj Kolonu</button>
-    <button onclick="savePDF()" style="background: gold; color: black; margin-left: auto;">SAČUVAJ KAO PDF</button>
+    <button onclick="addRow()">+ Red</button>
+    <button onclick="addCol()">+ Kolona</button>
+    <button onclick="savePDF()" style="background: gold; color: black; margin-left: auto;">SAČUVAJ PDF</button>
 </div>
 
 <div id="table-container">
-    <table id="mainTable">
+    <table id="excelTable">
         <thead><tr id="header"></tr></thead>
         <tbody id="body"></tbody>
     </table>
 </div>
 
 <script>
-// OVDJE SAM STAVIO 100 REDOVA KAO ŠTO SI TRAŽIO
 let rows = 100, cols = 15;
 let dataStore = {}; 
-let results = {};   
-let isSelecting = false;
-let anchorCell = null;
+let results = {};
 
 function build() {
     const h = document.getElementById("header");
     const b = document.getElementById("body");
+    
+    // Zaglavlje (Slova)
     h.innerHTML = '<th class="row-idx">ID</th>';
     for(let j=0; j<cols; j++) {
         let th = document.createElement("th");
-        th.innerText = String.fromCharCode(65 + j);
+        let letter = String.fromCharCode(65 + j);
+        th.innerText = letter;
+        th.onclick = () => selectColumn(j + 1);
         h.appendChild(th);
     }
+
+    // Redovi
     b.innerHTML = "";
     for(let i=1; i<=rows; i++) {
         let tr = document.createElement("tr");
-        let idx = document.createElement("td");
-        idx.className = "row-idx";
-        idx.innerText = i;
-        tr.appendChild(idx);
+        let idxTd = document.createElement("td");
+        idxTd.className = "row-idx";
+        idxTd.innerText = i;
+        idxTd.onclick = () => selectRow(i - 1);
+        tr.appendChild(idxTd);
+
         for(let j=0; j<cols; j++) {
             let id = String.fromCharCode(65 + j) + i;
             let td = document.createElement("td");
@@ -64,76 +73,58 @@ function build() {
             td.innerText = results[id] || "";
 
             td.onfocus = () => {
-                td.classList.add("active-input");
+                clearSelection();
+                td.classList.add("active-cell");
                 if(dataStore[id]) td.innerText = dataStore[id];
             };
 
             td.onblur = () => {
-                td.classList.remove("active-input");
+                td.classList.remove("active-cell");
                 dataStore[id] = td.innerText;
                 calculate();
             };
 
-            td.onmousedown = (e) => {
-                let active = document.activeElement;
-                if(active && active.innerText.startsWith('=') && active !== td) {
-                    e.preventDefault();
-                    active.innerText += id;
-                } else {
-                    isSelecting = true;
-                    anchorCell = td;
-                    clearSelection();
-                    td.classList.add("selected");
-                }
+            // KRETANJE STRELICAMA
+            td.onkeydown = (e) => {
+                let r = td.parentElement.rowIndex - 1;
+                let c = td.cellIndex;
+                if (e.key === "ArrowUp") moveFocus(r - 1, c);
+                if (e.key === "ArrowDown") moveFocus(r + 1, c);
+                if (e.key === "ArrowLeft") moveFocus(r, c - 1);
+                if (e.key === "ArrowRight") moveFocus(r, c + 1);
+                if (e.key === "Enter") { e.preventDefault(); td.blur(); }
             };
 
-            td.onmouseover = () => { if(isSelecting) selectRange(anchorCell, td); };
-            td.onkeydown = (e) => { if(e.key === "Enter") { e.preventDefault(); td.blur(); } };
             tr.appendChild(td);
         }
         b.appendChild(tr);
     }
 }
 
-function selectRange(start, end) {
+function moveFocus(r, c) {
+    let table = document.getElementById("excelTable");
+    if (r >= 0 && r < rows && c >= 1 && c <= cols) {
+        table.rows[r+1].cells[c].focus();
+    }
+}
+
+function selectRow(idx) {
     clearSelection();
-    let r1 = start.parentElement.rowIndex, r2 = end.parentElement.rowIndex;
-    let c1 = start.cellIndex, c2 = end.cellIndex;
-    let body = document.getElementById("body");
-    for(let r = Math.min(r1,r2); r <= Math.max(r1,r2); r++) {
-        for(let c = Math.min(c1,c2); c <= Math.max(c1,c2); c++) {
-            body.rows[r-1].cells[c].classList.add("selected");
-        }
+    let rowCells = document.getElementById("body").rows[idx].cells;
+    for(let i=1; i < rowCells.length; i++) rowCells[i].classList.add("selected");
+}
+
+function selectColumn(idx) {
+    clearSelection();
+    let bodyRows = document.getElementById("body").rows;
+    for(let i=0; i < bodyRows.length; i++) {
+        bodyRows[i].cells[idx].classList.add("selected");
     }
 }
 
 function clearSelection() {
-    document.querySelectorAll('.selected').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
 }
-
-document.onmouseup = () => isSelecting = false;
-
-document.onpaste = (e) => {
-    e.preventDefault();
-    let text = e.clipboardData.getData("text/plain");
-    let lines = text.split(/\r?\n/);
-    let active = document.activeElement;
-    if(!active || active.tagName !== "TD") return;
-    let r0 = active.parentElement.rowIndex - 1;
-    let c0 = active.cellIndex;
-    let body = document.getElementById("body");
-    lines.forEach((line, i) => {
-        let cells = line.split("\t");
-        cells.forEach((v, j) => {
-            let cell = body.rows[r0 + i]?.cells[c0 + j];
-            if(cell) {
-                cell.innerText = v.trim();
-                dataStore[cell.id] = v.trim();
-            }
-        });
-    });
-    calculate();
-};
 
 function calculate() {
     for(let id in dataStore) {
@@ -162,7 +153,7 @@ function addRow() { rows++; build(); calculate(); }
 function addCol() { cols++; build(); calculate(); }
 function savePDF() { 
     const element = document.getElementById('table-container');
-    html2pdf().from(element).set({ margin: 5, filename: 'proracun.pdf', jsPDF: { orientation: 'landscape' } }).save(); 
+    html2pdf().from(element).set({ margin: 5, filename: 'excel.pdf', jsPDF: { orientation: 'landscape' } }).save(); 
 }
 
 build();
