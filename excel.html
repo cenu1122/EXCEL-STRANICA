@@ -2,54 +2,61 @@
 <html lang="bs">
 <head>
     <meta charset="UTF-8">
-    <title>Inžinjerski Excel PRO v9</title>
+    <title>Inžinjerski Excel PRO v10</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body { font-family: sans-serif; margin: 0; background: #f0f0f0; overflow: hidden; }
-        .toolbar { background: #217346; color: white; padding: 10px; display: flex; gap: 10px; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .btn { padding: 8px 15px; border: 0; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn-excel { background: #ffffff; color: #217346; border: 2px solid #ffffff; }
-        .btn-excel:hover { background: #e8f5e9; }
-        .btn-pdf { background: #d32f2f; color: white; }
-        .btn-add { background: #1565c0; color: white; }
+        .toolbar { background: #217346; color: white; padding: 10px; display: flex; gap: 8px; align-items: center; }
+        .btn { padding: 6px 12px; border: 0; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px; }
+        .btn-green { background: #ffffff; color: #217346; }
+        .btn-red { background: #d32f2f; color: white; }
+        .btn-blue { background: #1565c0; color: white; }
         
-        #table-container { height: calc(100vh - 70px); overflow: auto; padding: 10px; }
+        #table-container { height: calc(100vh - 65px); overflow: auto; padding: 10px; }
         table { border-collapse: collapse; background: white; table-layout: fixed; width: max-content; }
-        td, th { border: 1px solid #ccc; width: 120px; height: 35px; text-align: center; outline: none; font-size: 15px; }
+        td, th { border: 1px solid #ccc; width: 120px; height: 35px; text-align: center; outline: none; font-size: 15px; position: relative; }
         th, .row-idx { background: #e2e2e2; user-select: none; font-weight: bold; position: sticky; top: 0; z-index: 10; }
-        .row-idx { position: sticky; left: 0; z-index: 11; width: 50px; }
+        .row-idx { position: sticky; left: 0; z-index: 11; width: 45px; }
         
-        /* Dugme za opcije unutar tabele */
-        .opt-trigger { width: 30px !important; background: #f5f5f5; cursor: pointer; color: #666; font-size: 18px; }
-        .opt-trigger:hover { background: #e0e0e0; color: #000; }
+        /* Tri tačkice - jasno vidljive */
+        .opt-btn { width: 35px !important; background: #ffd54f; cursor: pointer; font-weight: bold; color: black; font-size: 20px; border-right: 2px solid #aaa; }
+        .opt-btn:hover { background: #ffca28; }
         
         .active-cell { border: 2px solid #217346 !important; background: #fffde7 !important; }
 
-        /* Meni koji se otvara na klik dugmeta */
+        /* Stilovi za Excel opcije */
+        .bold-text { font-weight: bold; }
+        .italic-text { font-style: italic; }
+        .bg-green { background-color: #c8e6c9 !important; }
+        .bg-red { background-color: #ffcdd2 !important; }
+
         #action-menu {
-            position: fixed; display: none; background: white; border: 1px solid #999;
-            box-shadow: 3px 3px 15px rgba(0,0,0,0.3); z-index: 10000; width: 180px; border-radius: 5px;
+            position: fixed; display: none; background: white; border: 1px solid #666;
+            box-shadow: 4px 4px 15px rgba(0,0,0,0.4); z-index: 10000; width: 160px; border-radius: 4px;
         }
-        .menu-item { padding: 12px 15px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #eee; }
-        .menu-item:hover { background: #217346; color: white; }
-        .menu-item:last-child { border-bottom: none; }
+        .menu-item { padding: 10px 15px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+        .menu-item:hover { background: #e8f5e9; color: #217346; }
     </style>
 </head>
 <body onclick="hideMenu()">
 
 <div class="toolbar">
-    <button class="btn btn-add" onclick="addRow()">+ NOVI RED</button>
-    <button class="btn btn-add" onclick="addCol()">+ NOVA KOLONA</button>
-    <div style="flex-grow: 1; text-align: center; font-weight: bold;">INŽINJERSKI EXCEL</div>
-    <button class="btn btn-excel" onclick="saveAsExcel()">💾 SNIMI U EXCEL (.xlsx)</button>
-    <button class="btn btn-pdf" onclick="saveAsPDF()">📄 SNIMI U PDF</button>
+    <button class="btn btn-blue" onclick="addRow()">+ RED</button>
+    <button class="btn btn-blue" onclick="addCol()">+ KOLONA</button>
+    <div style="flex-grow: 1;"></div>
+    <button class="btn btn-green" onclick="saveAsExcel()">EXCEL</button>
+    <button class="btn btn-red" onclick="saveAsPDF()">PDF</button>
 </div>
 
 <div id="action-menu">
+    <div class="menu-item" onclick="toggleStyle('bold-text')">Podebljaj (B)</div>
+    <div class="menu-item" onclick="toggleStyle('italic-text')">Kosi tekst (I)</div>
+    <div class="menu-item" onclick="toggleStyle('bg-green')">Boja: Zelena</div>
+    <div class="menu-item" onclick="toggleStyle('bg-red')">Boja: Crvena</div>
+    <div style="border-top: 2px solid #217346;"></div>
     <div class="menu-item" onclick="insertRow()">Ubaci red ispod</div>
-    <div class="menu-item" onclick="deleteRow()">Obriši ovaj red</div>
-    <div class="menu-item" onclick="clearRow()">Isprazni red</div>
+    <div class="menu-item" onclick="deleteRow()" style="color: red;">Obriši red</div>
 </div>
 
 <div id="table-container">
@@ -61,35 +68,29 @@
 
 <script>
 let rows = 100, cols = 15;
+let targetCell = null;
 let targetRowIndex = null;
 
 function build() {
     const h = document.getElementById("header");
     const b = document.getElementById("body");
-    
-    // Zaglavlje
-    h.innerHTML = '<th class="row-idx">ID</th><th class="row-idx">OPC.</th>';
+    h.innerHTML = '<th class="row-idx">ID</th><th class="row-idx">...</th>';
     for(let j=0; j<cols; j++) {
         let th = document.createElement("th");
         th.innerText = String.fromCharCode(65 + j);
         h.appendChild(th);
     }
-
-    // Redovi
     b.innerHTML = "";
     for(let i=1; i<=rows; i++) {
         let tr = document.createElement("tr");
-        
-        // Broj reda
         let idxTd = document.createElement("td");
         idxTd.className = "row-idx";
         idxTd.innerText = i;
         tr.appendChild(idxTd);
 
-        // DUGME ZA OPCIJE (Zamjena za desni klik)
         let optTd = document.createElement("td");
-        optTd.className = "opt-trigger";
-        optTd.innerHTML = "⋮";
+        optTd.className = "opt-btn";
+        optTd.innerText = "⋮";
         optTd.onclick = (e) => {
             e.stopPropagation();
             showMenu(e.clientX, e.clientY, tr.rowIndex - 1);
@@ -99,16 +100,14 @@ function build() {
         for(let j=0; j<cols; j++) {
             let td = document.createElement("td");
             td.contentEditable = true;
-            td.onfocus = () => td.classList.add("active-cell");
+            td.onfocus = () => { td.classList.add("active-cell"); targetCell = td; };
             td.onblur = () => td.classList.remove("active-cell");
-            
-            // Navigacija strelicama
             td.onkeydown = (e) => {
                 let r = tr.rowIndex - 1, c = td.cellIndex;
-                if (e.key === "ArrowUp") { e.preventDefault(); moveFocus(r - 1, c); }
-                if (e.key === "ArrowDown") { e.preventDefault(); moveFocus(r + 1, c); }
-                if (e.key === "ArrowLeft" && window.getSelection().anchorOffset === 0) { e.preventDefault(); moveFocus(r, c - 1); }
-                if (e.key === "ArrowRight" && window.getSelection().anchorOffset === td.innerText.length) { e.preventDefault(); moveFocus(r, c + 1); }
+                if (e.key === "ArrowUp") moveFocus(r - 1, c);
+                if (e.key === "ArrowDown") moveFocus(r + 1, c);
+                if (e.key === "ArrowLeft" && window.getSelection().anchorOffset === 0) moveFocus(r, c - 1);
+                if (e.key === "ArrowRight" && window.getSelection().anchorOffset === td.innerText.length) moveFocus(r, c + 1);
             };
             tr.appendChild(td);
         }
@@ -116,15 +115,20 @@ function build() {
     }
 }
 
-function showMenu(x, y, rowIndex) {
-    let menu = document.getElementById("action-menu");
-    menu.style.display = "block";
-    menu.style.left = x + "px";
-    menu.style.top = y + "px";
-    targetRowIndex = rowIndex;
+function showMenu(x, y, rIdx) {
+    let m = document.getElementById("action-menu");
+    m.style.display = "block";
+    m.style.left = x + "px";
+    m.style.top = y + "px";
+    targetRowIndex = rIdx;
 }
 
 function hideMenu() { document.getElementById("action-menu").style.display = "none"; }
+
+function toggleStyle(styleClass) {
+    if(targetCell) targetCell.classList.toggle(styleClass);
+    hideMenu();
+}
 
 function moveFocus(r, c) {
     let table = document.getElementById("excelTable");
@@ -134,35 +138,17 @@ function moveFocus(r, c) {
     }
 }
 
-// Funkcije menija
 function insertRow() { rows++; build(); hideMenu(); }
-function deleteRow() { 
-    if(targetRowIndex !== null) {
-        document.getElementById("excelTable").deleteRow(targetRowIndex + 1);
-        rows--;
-    }
-    hideMenu(); 
-}
-function clearRow() {
-    let row = document.getElementById("excelTable").rows[targetRowIndex + 1];
-    for(let i=2; i<row.cells.length; i++) row.cells[i].innerText = "";
-    hideMenu();
-}
+function deleteRow() { if(targetRowIndex !== null) { document.getElementById("excelTable").deleteRow(targetRowIndex + 1); rows--; } hideMenu(); }
 
-// ČUVANJE
 function saveAsExcel() {
-    let table = document.getElementById("excelTable");
-    // Brišemo kolonu sa dugmićima iz izvoza da ne smeta u Excelu
-    let wb = XLSX.utils.table_to_book(table);
-    XLSX.writeFile(wb, "Inzinjerski_Proracun.xlsx");
+    let wb = XLSX.utils.table_to_book(document.getElementById("excelTable"));
+    XLSX.writeFile(wb, "Proracun.xlsx");
 }
 
 function saveAsPDF() {
-    const element = document.getElementById('table-container');
-    html2pdf().from(element).set({
-        margin: 5,
-        filename: 'Proracun.pdf',
-        jsPDF: { orientation: 'landscape' }
+    html2pdf().from(document.getElementById('table-container')).set({
+        margin: 5, filename: 'Proracun.pdf', jsPDF: { orientation: 'landscape' }
     }).save();
 }
 
