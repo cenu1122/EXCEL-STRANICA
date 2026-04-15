@@ -2,96 +2,112 @@
 <html lang="bs">
 <head>
     <meta charset="UTF-8">
-    <title>Inžinjer - Fleksibilna Tabela</title>
+    <title>Excel Tabela</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; }
         
+        /* Gornja traka sa komandama */
         .toolbar {
             background-color: #444;
             color: white;
-            padding: 15px;
+            padding: 10px 20px;
             display: flex;
             align-items: center;
-            gap: 20px;
+            justify-content: space-between; /* Razmak između lijeve i desne strane */
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
+
+        .btn-group { display: flex; gap: 10px; }
 
         .btn {
             background: none;
             border: 2px solid white;
             color: white;
             padding: 8px 15px;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             cursor: pointer;
+            text-transform: uppercase;
         }
 
-        .title { margin-left: auto; font-size: 24px; font-weight: bold; }
+        .btn:hover { background-color: white; color: #444; }
 
-        /* TABELA */
+        /* Stilovi za Tabelu */
         table { border-collapse: collapse; background: white; table-layout: fixed; width: auto; }
         
-        /* 1. KONTROLA ŠIRINE I VISINE (RESIZE) */
         th, td { 
             border: 1px solid #ccc; 
-            padding: 5px; 
-            text-align: center; 
+            padding: 0; 
+            position: relative;
             overflow: hidden;
-            resize: both; /* Omogućava razvlačenje i širine i visine */
+            resize: both; /* Omogućava ručno širenje kolona i redova */
         }
 
-        th { background-color: #eee; min-width: 50px; }
+        th { background-color: #eee; min-width: 60px; height: 40px; }
 
-        /* 2. EKSTREMNO USKA KOLONA ZA OPCIJE (Horizontalne tačkice) */
-        .col-id { width: 40px; font-weight: bold; background: #eee; resize: none; }
-        .col-opc { width: 30px; color: #888; cursor: pointer; font-size: 12px; resize: none; }
+        /* Uske kolone za ID i Opcije */
+        .col-id { width: 50px; font-weight: bold; resize: none; }
+        .col-opc { width: 35px; color: #888; cursor: pointer; resize: none; font-size: 18px; }
 
-        /* 3. TAČKICE U ZAGLAVLJU (A, B, C...) */
-        .header-container {
+        /* Sadržaj zaglavlja sa tačkama */
+        .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 0 8px;
             height: 100%;
         }
-        .h-dots { font-size: 12px; color: #999; cursor: pointer; margin-left: 5px; }
+
+        .dots-h { color: #999; cursor: pointer; font-weight: bold; }
 
         input { 
             width: 100%; 
             height: 100%; 
             border: none; 
             outline: none; 
-            background: transparent; 
-            text-align: center; 
+            padding: 10px;
+            box-sizing: border-box;
+            font-size: 16px;
+            text-align: center;
         }
 
-        /* Dodatak za resize dršku da bude vidljivija */
+        /* Drška za resize (donji desni ugao) */
         th::-webkit-resizer, td::-webkit-resizer {
-            border: 4px solid transparent;
-            border-right-color: #ccc;
-            border-bottom-color: #ccc;
+            border: 5px solid transparent;
+            border-right-color: #aaa;
+            border-bottom-color: #aaa;
         }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <button class="btn" onclick="addRow()">+ NOVI RED</button>
-    <button class="btn" onclick="addColumn()">+ NOVA KOLONA</button>
-    <div class="title">INŽINJER</div>
+    <div class="btn-group">
+        <button class="btn" onclick="addRow()">+ NOVI RED</button>
+        <button class="btn" onclick="addColumn()">+ NOVA KOLONA</button>
+    </div>
+
+    <div class="btn-group">
+        <button class="btn" style="border-color: #217346;" onclick="exportExcel()">EXCEL</button>
+        <button class="btn" style="border-color: #d32f2f;" onclick="exportPDF()">PDF</button>
+    </div>
 </div>
 
-<table id="myTable">
+<table id="mainTable">
     <thead>
         <tr id="header-row">
             <th class="col-id">ID</th>
             <th class="col-opc">...</th>
-            <th style="width: 150px;">
-                <div class="header-container"><span>A</span><span class="h-dots">...</span></div>
+            <th style="width: 200px;">
+                <div class="header-content"><span>A</span><span class="dots-h">...</span></div>
             </th>
-            <th style="width: 150px;">
-                <div class="header-container"><span>B</span><span class="h-dots">...</span></div>
+            <th style="width: 200px;">
+                <div class="header-content"><span>B</span><span class="dots-h">...</span></div>
             </th>
-            <th style="width: 150px;">
-                <div class="header-container"><span>C</span><span class="h-dots">...</span></div>
+            <th style="width: 200px;">
+                <div class="header-content"><span>C</span><span class="dots-h">...</span></div>
             </th>
         </tr>
     </thead>
@@ -100,43 +116,40 @@
 </table>
 
 <script>
-    let rowCount = 10; // Možeš staviti 171 ili koliko želiš
-    let colCount = 3; 
-    const colLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    let rowCount = 10; 
+    let colCount = 3;
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
     function renderTable() {
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = '';
-
         for (let i = 1; i <= rowCount; i++) {
             const tr = document.createElement('tr');
-            
-            // ID i horizontalne tačkice
-            let html = `<td class="col-id">${i}</td><td class="col-opc">...</td>`;
-            
-            // Kolone sa inputima
+            let rowHTML = `<td class="col-id">${i}</td><td class="col-opc">...</td>`;
             for (let j = 0; j < colCount; j++) {
-                html += `<td><input type="text"></td>`;
+                rowHTML += `<td><input type="text"></td>`;
             }
-            
-            tr.innerHTML = html;
+            tr.innerHTML = rowHTML;
             tbody.appendChild(tr);
         }
     }
 
     function addRow() { rowCount++; renderTable(); }
-    
+
     function addColumn() {
-        if(colCount < colLetters.length) {
-            const headerRow = document.getElementById('header-row');
+        if(colCount < 26) {
+            const hr = document.getElementById('header-row');
             const th = document.createElement('th');
-            th.style.width = "150px";
-            th.innerHTML = `<div class="header-container"><span>${colLetters[colCount]}</span><span class="h-dots">...</span></div>`;
-            headerRow.appendChild(th);
+            th.style.width = "200px";
+            th.innerHTML = `<div class="header-content"><span>${letters[colCount]}</span><span class="dots-h">...</span></div>`;
+            hr.appendChild(th);
             colCount++;
             renderTable();
         }
     }
+
+    function exportExcel() { alert("Generišem Excel fajl..."); }
+    function exportPDF() { alert("Generišem PDF dokument..."); }
 
     renderTable();
 </script>
