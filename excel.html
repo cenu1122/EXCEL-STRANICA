@@ -2,16 +2,17 @@
 <html lang="bs">
 <head>
     <meta charset="UTF-8">
-    <title>Inžinjerski Excel PRO</title>
+    <title>Inžinjerski Excel FINAL</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body { font-family: sans-serif; background: #f0f0f0; margin: 0; }
         .toolbar { background: #217346; padding: 10px; display: flex; gap: 10px; position: sticky; top: 0; z-index: 100; color: white; align-items: center; }
         button { padding: 8px 15px; cursor: pointer; border-radius: 4px; border: none; font-weight: bold; background: white; color: #217346; }
         .grid { display: grid; background: #bbb; gap: 1px; margin: 10px; border: 1px solid #bbb; }
-        .cell { background: white; padding: 5px; min-height: 25px; outline: none; font-size: 16px; text-align: left; min-width: 100px; }
-        .header { background: #e2e2e2; font-weight: bold; color: #444; display: flex; align-items: center; justify-content: center; height: 30px; }
+        .cell { background: white; padding: 8px; min-height: 30px; outline: none; font-size: 18px; text-align: center; }
+        .header { background: #e2e2e2; font-weight: bold; color: #444; display: flex; align-items: center; justify-content: center; height: 35px; }
         .active-cell { border: 2px solid #217346 !important; background: #fffde7 !important; }
+        .calculated { background: #e8f5e9; transition: background 0.5s; }
     </style>
 </head>
 <body>
@@ -20,7 +21,7 @@
     <button onclick="addRow()">+ Red</button>
     <button onclick="addCol()">+ Kolona</button>
     <button onclick="savePDF()" style="background: gold; color: black; margin-left: auto;">SAČUVAJ PDF</button>
-    <span id="status" style="font-size: 12px; margin-left: 10px; color: #c8e6c9;">Status: Spreman</span>
+    <span id="status" style="font-size: 14px; margin-left: 10px;">Status: Spreman</span>
 </div>
 
 <div id="pdf-area">
@@ -30,13 +31,13 @@
 <script>
     let rows = 20;
     let cols = 8;
-    let cellData = {}; // Čuva formule (npr. =A1+B1)
-    let cellResults = {}; // Čuva brojeve (npr. 150)
+    let rawData = {}; // Čuva ono što si TI napisao (formulu)
+    let displayResults = {}; // Čuva REZULTAT koji se vidi
 
     function render() {
         const grid = document.getElementById('excelGrid');
         grid.innerHTML = '';
-        grid.style.gridTemplateColumns = `40px repeat(${cols}, 1fr)`;
+        grid.style.gridTemplateColumns = `50px repeat(${cols}, 1fr)`;
 
         // Zaglavlje A, B, C...
         grid.appendChild(createDiv('', 'header'));
@@ -44,7 +45,7 @@
             grid.appendChild(createDiv(String.fromCharCode(65 + c), 'header'));
         }
 
-        // Generisanje ćelija
+        // Pravljenje ćelija
         for (let r = 1; r <= rows; r++) {
             grid.appendChild(createDiv(r, 'header')); 
             for (let c = 0; c < cols; c++) {
@@ -54,23 +55,21 @@
                 cell.contentEditable = true;
                 cell.id = id;
                 
-                // Prikaži rezultat ako postoji
-                cell.innerText = cellResults[id] || '';
+                // Pokaži rezultat ako postoji
+                cell.innerText = displayResults[id] || '';
 
                 cell.onfocus = () => {
                     cell.classList.add('active-cell');
-                    if (cellData[id]) cell.innerText = cellData[id];
-                    document.getElementById('status').innerText = "Uređivanje: " + id;
+                    if (rawData[id]) cell.innerText = rawData[id];
                 };
 
                 cell.onblur = () => {
                     cell.classList.remove('active-cell');
-                    cellData[id] = cell.innerText;
-                    calculate();
-                    document.getElementById('status').innerText = "Spreman";
+                    rawData[id] = cell.innerText.trim();
+                    runCalculations();
                 };
 
-                // Ključno: Klik na drugu ćeliju dok pišeš formulu
+                // Automatsko dodavanje adrese klikom
                 cell.onmousedown = (e) => {
                     let active = document.activeElement;
                     if (active && active.innerText.startsWith('=') && active !== cell) {
@@ -79,7 +78,7 @@
                     }
                 };
 
-                // Prečica: ENTER za kraj
+                // Enter taster završava unos
                 cell.onkeydown = (e) => {
                     if (e.key === "Enter") {
                         e.preventDefault();
@@ -99,47 +98,52 @@
         return d;
     }
 
-    function calculate() {
-        // Prvo prepiši sve obične brojeve u rezultate
-        for (let id in cellData) {
-            if (!cellData[id].startsWith('=')) {
-                cellResults[id] = cellData[id];
+    function runCalculations() {
+        // 1. Prvo pokupi sve fiksne brojeve
+        for (let id in rawData) {
+            if (!rawData[id].startsWith('=')) {
+                displayResults[id] = rawData[id];
             }
         }
 
-        // Onda izračunaj formule
-        for (let id in cellData) {
-            let val = cellData[id];
+        // 2. Izračunaj sve formule
+        for (let id in rawData) {
+            let val = rawData[id];
             if (val.startsWith('=')) {
                 try {
                     let formula = val.substring(1).toUpperCase();
-                    // Zamijeni npr. "A1" sa brojem koji je u cellResults["A1"]
-                    let processed = formula.replace(/[A-Z][0-9]+/g, (match) => {
-                        let num = parseFloat(cellResults[match]) || 0;
+                    // Zamijeni npr. "A1" sa brojem iz displayResults
+                    let expression = formula.replace(/[A-Z][0-9]+/g, (match) => {
+                        let num = parseFloat(displayResults[match]) || 0;
                         return num;
                     });
-                    cellResults[id] = eval(processed);
-                } catch (e) {
-                    cellResults[id] = "#GREŠKA";
+                    
+                    // Izračunaj matematiku
+                    let finalResult = eval(expression);
+                    displayResults[id] = finalResult;
+                    
+                    // Mala vizuelna potvrda
+                    document.getElementById(id).classList.add('calculated');
+                    setTimeout(() => document.getElementById(id).classList.remove('calculated'), 500);
+                    
+                } catch (err) {
+                    displayResults[id] = "#GREŠKA";
                 }
             }
         }
 
-        // Osvježi prikaz na ekranu
-        for (let id in cellResults) {
+        // 3. Ažuriraj sve ćelije koje trenutno ne diraš
+        for (let id in displayResults) {
             let el = document.getElementById(id);
             if (el && el !== document.activeElement) {
-                el.innerText = cellResults[id];
+                el.innerText = displayResults[id];
             }
         }
     }
 
-    function addRow() { rows++; render(); }
-    function addCol() { cols++; render(); }
-    function savePDF() { 
-        const element = document.getElementById('pdf-area');
-        html2pdf().from(element).save(); 
-    }
+    function addRow() { rows++; render(); runCalculations(); }
+    function addCol() { cols++; render(); runCalculations(); }
+    function savePDF() { html2pdf().from(document.getElementById('pdf-area')).save(); }
 
     render();
 </script>
