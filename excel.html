@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moja Excel Stranica - Finalna Verzija</title>
+    <title>Moja Excel Stranica - Sa Strelicama</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
         body { font-family: sans-serif; margin: 20px; }
         .toolbar { margin-bottom: 20px; }
@@ -20,10 +18,13 @@
         .header-letters { background: #e0e0e0; text-align: center; font-weight: bold; }
         .header-letters td { border: 1px solid #ccc; height: 40px; position: relative; }
         
-        th, td { border: 1px solid #ccc; padding: 12px; font-size: 18px; position: relative; overflow: hidden; }
+        th, td { border: 1px solid #ccc; padding: 12px; font-size: 18px; position: relative; overflow: hidden; outline: none; }
         th { background: #fff; text-align: left; }
 
-        .menu-dots { cursor: pointer; float: right; font-size: 20px; color: #888; margin-left: 10px; }
+        /* Fokusirana ćelija (kao u Excelu) */
+        td:focus { border: 2px solid #217346; background: #e8f5e9; }
+
+        .menu-dots { cursor: pointer; float: right; font-size: 20px; color: #888; }
         .header-letters .menu-dots { position: absolute; right: 5px; top: 10px; }
 
         .resizer {
@@ -46,8 +47,8 @@
 <body>
 
     <div class="toolbar">
-        <button onclick="addRow()">➕ Dodaj novi red na dno</button>
-        <button onclick="addCol()">➕ Dodaj novu kolonu</button>
+        <button onclick="addRow()">➕ Dodaj red</button>
+        <button onclick="addCol()">➕ Dodaj kolonu</button>
         <button onclick="exportToExcel()">📊 Snimi Excel</button>
     </div>
 
@@ -70,8 +71,8 @@
         <tbody id="table-body">
             <tr>
                 <td>1 <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>
-                <td contenteditable="true" oninput="izracunajSve()">Stavka 1</td>
-                <td contenteditable="true" oninput="izracunajSve()" class="vrijednost">100.00</td>
+                <td contenteditable="true" class="cell" oninput="izracunajSve()">Stavka 1</td>
+                <td contenteditable="true" class="cell vrijednost" oninput="izracunajSve()">100.00</td>
                 <td><span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>
             </tr>
         </tbody>
@@ -86,16 +87,43 @@
 
     <div id="custom-menu">
         <div onclick="dodajRedIspod()">➕ Dodaj red ispod</div>
-        <div onclick="izvrsiKopiraj()">📋 Kopiraj podatke</div>
-        <div id="paste-option" onclick="izvrsiZalijepi()" style="display: none;">📥 Zalijepi (Paste)</div>
-        <div onclick="izvrsiObrisi()" style="color: red; font-weight: bold;">🗑️ Obriši cijeli red</div>
+        <div onclick="izvrsiKopiraj()">📋 Kopiraj</div>
+        <div id="paste-option" onclick="izvrsiZalijepi()" style="display: none;">📥 Zalijepi</div>
+        <div onclick="izvrsiObrisi()" style="color: red;">🗑️ Obriši red</div>
     </div>
 
     <script>
         let selektovaniRed = null;
         let kopiraniPodaci = null;
 
-        // --- RESIZER LOGIKA ---
+        // --- KRETANJE STRELICAMA ---
+        document.addEventListener('keydown', function(e) {
+            const active = document.activeElement;
+            if (!active || !active.classList.contains('cell')) return;
+
+            const row = active.parentElement;
+            const colIndex = Array.from(row.cells).indexOf(active);
+            
+            if (e.key === "ArrowUp") {
+                const prevRow = row.previousElementSibling;
+                if (prevRow) prevRow.cells[colIndex].focus();
+                e.preventDefault();
+            } else if (e.key === "ArrowDown") {
+                const nextRow = row.nextElementSibling;
+                if (nextRow) nextRow.cells[colIndex].focus();
+                e.preventDefault();
+            } else if (e.key === "ArrowLeft") {
+                if (active.selectionStart === 0 || active.innerText.length === 0) {
+                    const prevCell = active.previousElementSibling;
+                    if (prevCell && prevCell.contentEditable === "true") prevCell.focus();
+                }
+            } else if (e.key === "ArrowRight") {
+                const nextCell = active.nextElementSibling;
+                if (nextCell && nextCell.contentEditable === "true") nextCell.focus();
+            }
+        });
+
+        // --- RESIZER ---
         function initResizers() {
             document.querySelectorAll('.resizer').forEach(resizer => {
                 resizer.onmousedown = function(e) {
@@ -109,19 +137,15 @@
         }
         initResizers();
 
-        // --- MENI I FUNKCIJE ---
+        // --- MENI I LOGIKA ---
         function prikaziMeni(el) {
             let menu = document.getElementById("custom-menu");
             let pasteOpt = document.getElementById("paste-option");
-            let e = window.event;
-            e.stopPropagation();
-            
+            let e = window.event; e.stopPropagation();
             selektovaniRed = el.closest('tr');
             pasteOpt.style.display = kopiraniPodaci ? "flex" : "none";
-            
             menu.style.display = "block";
-            menu.style.left = e.pageX + "px";
-            menu.style.top = e.pageY + "px";
+            menu.style.left = e.pageX + "px"; menu.style.top = e.pageY + "px";
         }
 
         window.onclick = () => document.getElementById("custom-menu").style.display = "none";
@@ -136,20 +160,13 @@
 
         function dodajRedIspod() {
             if (!selektovaniRed || selektovaniRed.parentNode.tagName !== 'TBODY') return;
-            let noviRed = selektovaniRed.cloneNode(true);
-            noviRed.querySelectorAll('td').forEach((td, i) => {
-                if(i === 1) td.innerText = "";
-                if(i === 2) td.innerText = "0.00";
-            });
-            selektovaniRed.after(noviRed);
+            addRow();
             reindex();
         }
 
         function izvrsiObrisi() {
             if (selektovaniRed && selektovaniRed.parentNode.tagName === 'TBODY') {
-                selektovaniRed.remove();
-                reindex();
-                izracunajSve();
+                selektovaniRed.remove(); reindex(); izracunajSve();
             }
         }
 
@@ -176,7 +193,7 @@
         function addRow() {
             let tbody = document.getElementById("table-body");
             let row = tbody.insertRow();
-            row.innerHTML = `<td></td><td contenteditable="true" oninput="izracunajSve()"></td><td contenteditable="true" oninput="izracunajSve()" class="vrijednost">0.00</td><td><span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>`;
+            row.innerHTML = `<td></td><td contenteditable="true" class="cell" oninput="izracunajSve()"></td><td contenteditable="true" class="cell vrijednost" oninput="izracunajSve()">0.00</td><td><span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>`;
             reindex();
         }
 
@@ -189,7 +206,7 @@
             for (let i = 1; i < table.rows.length - 1; i++) {
                 let c = table.rows[i].insertCell(cIndex);
                 if (i === 1) c.outerHTML = `<th>Nova <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></th>`;
-                else c.contentEditable = "true";
+                else { c.contentEditable = "true"; c.className = "cell"; }
             }
             initResizers();
         }
