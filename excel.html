@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <title>Excel ULTRA PRO</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
 <style>
 body{font-family:sans-serif;margin:0;background:#f0f0f0}
 .toolbar{background:#217346;color:white;padding:10px;display:flex;gap:10px}
@@ -40,15 +38,35 @@ td.selected, th.selected{background:#a5d6a7 !important}
 <script>
 
 let rows=30, cols=10;
-let data={};
 
-let isSelecting=false;
-let startCell=null;
 let selected=[];
+let isSelecting=false;
+
+let anchorCell=null;
 
 function clearSel(){
     selected.forEach(c=>c.classList.remove("selected"));
     selected=[];
+}
+
+function selectRange(a,b){
+    clearSel();
+
+    let body=document.getElementById("body");
+
+    let r1=Math.min(a.parentElement.rowIndex,b.parentElement.rowIndex);
+    let r2=Math.max(a.parentElement.rowIndex,b.parentElement.rowIndex);
+
+    let c1=Math.min(a.cellIndex,b.cellIndex);
+    let c2=Math.max(a.cellIndex,b.cellIndex);
+
+    for(let r=r1;r<=r2;r++){
+        for(let c=c1;c<=c2;c++){
+            let cell=body.rows[r].cells[c];
+            cell.classList.add("selected");
+            selected.push(cell);
+        }
+    }
 }
 
 function build(){
@@ -64,12 +82,12 @@ for(let j=0;j<cols;j++){
 
     th.onclick=()=>{
         clearSel();
-        let bodyRows=b.rows;
-        for(let i=0;i<bodyRows.length;i++){
-            let cell=bodyRows[i].cells[j+1];
-            if(cell){cell.classList.add("selected");selected.push(cell);}
+        let rowsEl=b.rows;
+        for(let i=0;i<rowsEl.length;i++){
+            let cell=rowsEl[i].cells[j+1];
+            cell.classList.add("selected");
+            selected.push(cell);
         }
-        th.classList.add("selected");
     };
 
     h.appendChild(th);
@@ -86,10 +104,9 @@ idx.innerText=i+1;
 
 idx.onclick=()=>{
     clearSel();
-    let row=b.rows[i];
-    for(let c=1;c<row.cells.length;c++){
-        row.cells[c].classList.add("selected");
-        selected.push(row.cells[c]);
+    for(let c=1;c<tr.cells.length;c++){
+        tr.cells[c].classList.add("selected");
+        selected.push(tr.cells[c]);
     }
 };
 
@@ -99,62 +116,20 @@ for(let j=0;j<cols;j++){
 let td=document.createElement("td");
 td.contentEditable=true;
 
-td.onmousedown=()=>{
+td.onmousedown=(e)=>{
     isSelecting=true;
-    clearSel();
-    startCell=td;
-    td.classList.add("selected");
-    selected=[td];
+
+    if(!e.shiftKey){
+        anchorCell=td;
+        clearSel();
+    }
+
+    selectRange(anchorCell, td);
 };
 
 td.onmouseover=()=>{
-if(!isSelecting) return;
-
-clearSel();
-
-let sr=startCell.parentElement.rowIndex;
-let sc=startCell.cellIndex;
-
-let er=td.parentElement.rowIndex;
-let ec=td.cellIndex;
-
-let r1=Math.min(sr,er);
-let r2=Math.max(sr,er);
-let c1=Math.min(sc,ec);
-let c2=Math.max(sc,ec);
-
-let rowsEl=b.rows;
-
-for(let r=r1;r<=r2;r++){
-for(let c=c1;c<=c2;c++){
-let cell=rowsEl[r].cells[c];
-cell.classList.add("selected");
-selected.push(cell);
-}
-}
-};
-
-td.onblur=()=>data[td.innerText]=td.innerText;
-
-td.onpaste=(e)=>{
-e.preventDefault();
-let text=e.clipboardData.getData("text/plain");
-let lines=text.split("\n");
-
-let r0=td.parentElement.rowIndex;
-let c0=td.cellIndex;
-
-lines.forEach((line,i)=>{
-let cols=line.split("\t");
-
-cols.forEach((v,j)=>{
-let cell=b.rows[r0+i].cells[c0+j];
-if(cell){
-cell.innerText=v;
-data[cell]=v;
-}
-});
-});
+    if(!isSelecting) return;
+    selectRange(anchorCell, td);
 };
 
 tr.appendChild(td);
@@ -195,6 +170,26 @@ if(e.ctrlKey && e.key=="x"){
 navigator.clipboard.writeText(txt());
 selected.forEach(x=>x.innerText="");
 }
+};
+
+document.onpaste=(e)=>{
+let text=e.clipboardData.getData("text/plain");
+let lines=text.split("\n");
+
+let b=document.getElementById("body");
+
+let start=selected[0] || b.rows[0].cells[0];
+
+let r0=start.parentElement.rowIndex;
+let c0=start.cellIndex;
+
+lines.forEach((line,i)=>{
+let cols=line.split("\t");
+cols.forEach((v,j)=>{
+let cell=b.rows[r0+i]?.cells[c0+j];
+if(cell) cell.innerText=v;
+});
+});
 };
 
 function addRow(){rows++;build();}
