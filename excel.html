@@ -8,9 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 20px; background: #fff; }
-        
-        /* Dugmići sa tvojih slika */
+        body { font-family: sans-serif; margin: 20px; }
         .toolbar { margin-bottom: 20px; }
         button { 
             background: #555; color: white; border: none; 
@@ -18,27 +16,24 @@
             cursor: pointer; margin-right: 10px; border-radius: 4px;
         }
 
-        /* Tabela stil */
         table { border-collapse: collapse; width: 100%; border: 1px solid #ccc; }
+        .header-letters { background: #e0e0e0; text-align: center; font-weight: bold; height: 40px; }
         
-        /* Siva slova A, B, C */
-        .header-letters { background: #f0f0f0; text-align: center; color: #333; font-weight: bold; }
-        
-        th, td { border: 1px solid #ccc; padding: 12px; font-size: 18px; text-align: left; }
-        th { font-size: 22px; background: #fff; }
+        th, td { border: 1px solid #ccc; padding: 12px; font-size: 18px; position: relative; }
+        th { background: #fff; font-size: 22px; text-align: left; }
 
-        .menu-dots { cursor: pointer; float: right; font-size: 22px; color: #888; }
+        .menu-dots { cursor: pointer; float: right; font-size: 22px; color: #888; margin-left: 10px; }
 
-        /* Skriveni meni */
+        /* Stil za tvoj meni sa slike */
         #custom-menu {
             display: none; position: absolute; background: white; 
             border: 1px solid #000; box-shadow: 4px 4px 10px rgba(0,0,0,0.2); 
-            z-index: 1000; min-width: 140px;
+            z-index: 1000; min-width: 150px;
         }
-        #custom-menu div { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; }
+        #custom-menu div { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px; }
         #custom-menu div:hover { background: #f0f0f0; }
 
-        .total-row { background: #eee; font-weight: bold; }
+        .total-row { background: #f5f5f5; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -46,33 +41,33 @@
     <div class="toolbar">
         <button onclick="addRow()">➕ Dodaj Red</button>
         <button onclick="addCol()">➕ Dodaj Kolonu</button>
-        <button onclick="exportToExcel()">📊 Export u Excel</button>
-        <button onclick="exportToPDF()">📄 Export u PDF</button>
+        <button onclick="exportToExcel()">📊 Excel</button>
+        <button onclick="exportToPDF()">📄 PDF</button>
     </div>
 
     <table id="myTable">
         <thead>
-            <tr class="header-letters" id="row-letters">
-                <td></td><td>A</td><td>B</td><td>C</td><td></td>
+            <tr class="header-letters" id="letters-row">
+                <td style="width: 60px;"></td><td>A</td><td>B</td><td>C</td><td style="width: 40px;"></td>
             </tr>
             <tr>
-                <th style="width: 60px;">ID <span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>
+                <th>ID <span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>
                 <th>Naziv Stavke <span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>
-                <th>Vrijednost <span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>
-                <th style="width: 40px;"></th>
+                <th>Vrijednost (KM) <span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>
+                <th><span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>
             </tr>
         </thead>
         <tbody id="table-body">
             <tr>
-                <td>1</td>
-                <td contenteditable="true" oninput="izracunajSve()">Primjer podataka</td>
+                <td>1 <span class="menu-dots" onclick="prikaziMeni()">⋮</span></td>
+                <td contenteditable="true" oninput="izracunajSve()">Stavka 1</td>
                 <td contenteditable="true" oninput="izracunajSve()" class="vrijednost">100.00</td>
                 <td><span class="menu-dots" onclick="prikaziMeni()">⋮</span></td>
             </tr>
         </tbody>
         <tfoot>
             <tr class="total-row">
-                <td colspan="2" style="text-align: right;">UKUPNO (KM):</td>
+                <td colspan="2" style="text-align: right;">UKUPNO:</td>
                 <td id="ukupno-polje">100.00</td>
                 <td></td>
             </tr>
@@ -80,23 +75,20 @@
     </table>
 
     <div id="custom-menu">
-        <div onclick="alert('Uređivanje...')">📝 Uredi</div>
-        <div onclick="alert('Obrisano!')">🗑️ Obriši</div>
+        <div onclick="akcija('Uredi')">📝 Uredi</div>
+        <div onclick="akcija('Kopiraj')">📋 Kopiraj</div>
+        <div onclick="akcija('Obriši')" style="color: red;">🗑️ Obriši</div>
     </div>
 
     <script>
-        // Automatsko računanje
         function izracunajSve() {
             let suma = 0;
-            let polja = document.querySelectorAll('.vrijednost');
-            polja.forEach(p => {
-                let broj = parseFloat(p.innerText.replace(',', '.')) || 0;
-                suma += broj;
+            document.querySelectorAll('.vrijednost').forEach(p => {
+                suma += parseFloat(p.innerText.replace(',', '.')) || 0;
             });
             document.getElementById('ukupno-polje').innerText = suma.toFixed(2);
         }
 
-        // Meni umjesto alerta
         function prikaziMeni() {
             let menu = document.getElementById("custom-menu");
             let e = window.event;
@@ -106,18 +98,21 @@
             menu.style.top = e.pageY + "px";
         }
 
+        function akcija(tip) {
+            console.log("Izabrano: " + tip);
+            document.getElementById("custom-menu").style.display = "none";
+        }
+
         window.onclick = function() {
             document.getElementById("custom-menu").style.display = "none";
         }
 
-        // Dodavanje novog reda
         function addRow() {
             let tbody = document.getElementById("table-body");
             let rCount = tbody.rows.length + 1;
             let row = tbody.insertRow();
-            
             row.innerHTML = `
-                <td>${rCount}</td>
+                <td>${rCount} <span class="menu-dots" onclick="prikaziMeni()">⋮</span></td>
                 <td contenteditable="true" oninput="izracunajSve()"></td>
                 <td contenteditable="true" oninput="izracunajSve()" class="vrijednost">0.00</td>
                 <td><span class="menu-dots" onclick="prikaziMeni()">⋮</span></td>
@@ -125,41 +120,29 @@
             izracunajSve();
         }
 
-        // Dodavanje kolone i novog slova
         function addCol() {
-            let rowLetters = document.getElementById("row-letters");
+            let lRow = document.getElementById("letters-row");
             let table = document.getElementById("myTable");
-            let currentCols = rowLetters.cells.length;
-            let nextLetter = String.fromCharCode(64 + currentCols - 1);
-
-            // Dodaj slovo u zaglavlje
-            let newLetterCell = rowLetters.insertCell(currentCols - 1);
-            newLetterCell.innerText = nextLetter;
-
-            // Dodaj ćelije u ostale redove
-            for (let i = 1; i < table.rows.length; i++) {
-                let row = table.rows[i];
-                if (row.classList.contains('total-row')) continue;
-                
-                let cell = row.insertCell(row.cells.length - 1);
-                if (i === 1) {
-                    cell.outerHTML = `<th>Nova Kolona <span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>`;
-                } else {
-                    cell.contentEditable = "true";
-                }
+            let cIndex = lRow.cells.length - 1;
+            
+            lRow.insertCell(cIndex).innerText = String.fromCharCode(64 + cIndex);
+            
+            for (let i = 1; i < table.rows.length - 1; i++) {
+                let cell = table.rows[i].insertCell(cIndex);
+                if (i === 1) cell.outerHTML = `<th>Nova <span class="menu-dots" onclick="prikaziMeni()">⋮</span></th>`;
+                else cell.contentEditable = "true";
             }
         }
 
         function exportToExcel() {
-            let wb = XLSX.utils.table_to_book(document.getElementById("myTable"));
-            XLSX.writeFile(wb, "moj_izvjestaj.xlsx");
+            XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById("myTable")), "tabela.xlsx");
         }
 
         function exportToPDF() {
             const { jsPDF } = window.jspdf;
             let doc = new jsPDF();
             doc.autoTable({ html: '#myTable' });
-            doc.save("moj_izvjestaj.pdf");
+            doc.save("tabela.pdf");
         }
     </script>
 </body>
