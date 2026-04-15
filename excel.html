@@ -1,203 +1,169 @@
 <!DOCTYPE html>
 <html lang="bs">
 <head>
-<meta charset="UTF-8">
-<title>Excel ULTRA PRO</title>
-
-<style>
-body{font-family:sans-serif;margin:0;background:#f0f0f0}
-.toolbar{background:#217346;color:white;padding:10px;display:flex;gap:10px}
-button{padding:6px 12px;border:0;background:white;color:#217346;font-weight:bold}
-
-#table-container{height:90vh;overflow:auto;padding:10px}
-
-table{border-collapse:collapse;background:white;user-select:none}
-td,th{border:1px solid #ccc;min-width:80px;height:25px;text-align:center}
-
-th{background:#e2e2e2;position:sticky;top:0}
-.row-idx{background:#e2e2e2;position:sticky;left:0}
-
-td.selected, th.selected{background:#a5d6a7 !important}
-</style>
+    <meta charset="UTF-8">
+    <title>Inžinjerski Excel ULTRA PRO</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; background: #f0f0f0; }
+        .toolbar { background: #217346; color: white; padding: 10px; display: flex; gap: 10px; position: sticky; top: 0; z-index: 1000; }
+        button { padding: 8px 15px; border: 0; border-radius: 4px; background: white; color: #217346; font-weight: bold; cursor: pointer; }
+        #table-container { height: calc(100vh - 60px); overflow: auto; padding: 10px; }
+        table { border-collapse: collapse; background: white; user-select: none; }
+        td, th { border: 1px solid #ccc; min-width: 100px; height: 30px; text-align: center; outline: none; font-size: 16px; }
+        th { background: #e2e2e2; position: sticky; top: 0; z-index: 10; }
+        .row-idx { background: #e2e2e2; width: 40px; font-weight: bold; position: sticky; left: 0; z-index: 5; }
+        td.selected { background: #e8f5e9 !important; border: 2px solid #217346 !important; }
+        .active-input { background: #fffde7 !important; border: 2px solid #217346 !important; }
+    </style>
 </head>
-
 <body>
 
 <div class="toolbar">
-<button onclick="addRow()">+ Red</button>
-<button onclick="addCol()">+ Kolona</button>
+    <button onclick="addRow()">+ Red</button>
+    <button onclick="addCol()">+ Kolona</button>
+    <button onclick="savePDF()" style="background: gold; color: black; margin-left: auto;">SAČUVAJ PDF</button>
 </div>
 
 <div id="table-container">
-<table>
-<thead><tr id="header"></tr></thead>
-<tbody id="body"></tbody>
-</table>
+    <table>
+        <thead><tr id="header"></tr></thead>
+        <tbody id="body"></tbody>
+    </table>
 </div>
 
 <script>
+let rows = 40, cols = 12;
+let dataStore = {}; // Čuva formule i brojeve
+let results = {};   // Čuva rezultate
+let isSelecting = false;
+let anchorCell = null;
 
-let rows=30, cols=10;
+function build() {
+    const h = document.getElementById("header");
+    const b = document.getElementById("body");
+    h.innerHTML = '<th class="row-idx"></th>';
+    for(let j=0; j<cols; j++) {
+        let th = document.createElement("th");
+        th.innerText = String.fromCharCode(65 + j);
+        h.appendChild(th);
+    }
+    b.innerHTML = "";
+    for(let i=1; i<=rows; i++) {
+        let tr = document.createElement("tr");
+        let idx = document.createElement("td");
+        idx.className = "row-idx";
+        idx.innerText = i;
+        tr.appendChild(idx);
+        for(let j=0; j<cols; j++) {
+            let id = String.fromCharCode(65 + j) + i;
+            let td = document.createElement("td");
+            td.contentEditable = true;
+            td.id = id;
+            td.innerText = results[id] || "";
 
-let selected=[];
-let isSelecting=false;
+            td.onfocus = () => {
+                td.classList.add("active-input");
+                if(dataStore[id]) td.innerText = dataStore[id];
+            };
 
-let anchorCell=null;
+            td.onblur = () => {
+                td.classList.remove("active-input");
+                dataStore[id] = td.innerText;
+                calculate();
+            };
 
-function clearSel(){
-    selected.forEach(c=>c.classList.remove("selected"));
-    selected=[];
+            td.onmousedown = (e) => {
+                let active = document.activeElement;
+                if(active && active.innerText.startsWith('=') && active !== td) {
+                    e.preventDefault();
+                    active.innerText += id;
+                } else {
+                    isSelecting = true;
+                    anchorCell = td;
+                    clearSelection();
+                    td.classList.add("selected");
+                }
+            };
+
+            td.onmouseover = () => { if(isSelecting) selectRange(anchorCell, td); };
+            td.onkeydown = (e) => { if(e.key === "Enter") { e.preventDefault(); td.blur(); } };
+            tr.appendChild(td);
+        }
+        b.appendChild(tr);
+    }
 }
 
-function selectRange(a,b){
-    clearSel();
-
-    let body=document.getElementById("body");
-
-    let r1=Math.min(a.parentElement.rowIndex,b.parentElement.rowIndex);
-    let r2=Math.max(a.parentElement.rowIndex,b.parentElement.rowIndex);
-
-    let c1=Math.min(a.cellIndex,b.cellIndex);
-    let c2=Math.max(a.cellIndex,b.cellIndex);
-
-    for(let r=r1;r<=r2;r++){
-        for(let c=c1;c<=c2;c++){
-            let cell=body.rows[r].cells[c];
-            cell.classList.add("selected");
-            selected.push(cell);
+function selectRange(start, end) {
+    clearSelection();
+    let r1 = start.parentElement.rowIndex, r2 = end.parentElement.rowIndex;
+    let c1 = start.cellIndex, c2 = end.cellIndex;
+    let body = document.getElementById("body");
+    for(let r = Math.min(r1,r2); r <= Math.max(r1,r2); r++) {
+        for(let c = Math.min(c1,c2); c <= Math.max(c1,c2); c++) {
+            body.rows[r-1].cells[c].classList.add("selected");
         }
     }
 }
 
-function build(){
+function clearSelection() {
+    document.querySelectorAll('.selected').forEach(c => c.classList.remove('selected'));
+}
 
-let h=document.getElementById("header");
-let b=document.getElementById("body");
+document.onmouseup = () => isSelecting = false;
 
-h.innerHTML='<th class="row-idx"></th>';
+document.onpaste = (e) => {
+    e.preventDefault();
+    let text = e.clipboardData.getData("text/plain");
+    let lines = text.split("\n");
+    let active = document.activeElement;
+    if(!active || active.tagName !== "TD") return;
+    let r0 = active.parentElement.rowIndex - 1;
+    let c0 = active.cellIndex;
+    let body = document.getElementById("body");
+    lines.forEach((line, i) => {
+        let cols = line.split("\t");
+        cols.forEach((v, j) => {
+            let cell = body.rows[r0 + i]?.cells[c0 + j];
+            if(cell) {
+                cell.innerText = v.trim();
+                dataStore[cell.id] = v.trim();
+            }
+        });
+    });
+    calculate();
+};
 
-for(let j=0;j<cols;j++){
-    let th=document.createElement("th");
-    th.innerText=String.fromCharCode(65+j);
-
-    th.onclick=()=>{
-        clearSel();
-        let rowsEl=b.rows;
-        for(let i=0;i<rowsEl.length;i++){
-            let cell=rowsEl[i].cells[j+1];
-            cell.classList.add("selected");
-            selected.push(cell);
+function calculate() {
+    // 1. Prvo prepiši sve što nisu formule
+    for(let id in dataStore) {
+        if(!dataStore[id].startsWith('=')) results[id] = dataStore[id];
+    }
+    // 2. Izračunaj formule
+    for(let id in dataStore) {
+        let val = dataStore[id];
+        if(val.startsWith('=')) {
+            try {
+                let formula = val.substring(1).toUpperCase();
+                let processed = formula.replace(/[A-Z][0-9]+/g, (match) => {
+                    return parseFloat(results[match]) || 0;
+                });
+                results[id] = eval(processed);
+            } catch(e) { results[id] = "#ERR"; }
         }
-    };
-
-    h.appendChild(th);
-}
-
-b.innerHTML="";
-
-for(let i=0;i<rows;i++){
-let tr=document.createElement("tr");
-
-let idx=document.createElement("td");
-idx.className="row-idx";
-idx.innerText=i+1;
-
-idx.onclick=()=>{
-    clearSel();
-    for(let c=1;c<tr.cells.length;c++){
-        tr.cells[c].classList.add("selected");
-        selected.push(tr.cells[c]);
     }
-};
-
-tr.appendChild(idx);
-
-for(let j=0;j<cols;j++){
-let td=document.createElement("td");
-td.contentEditable=true;
-
-td.onmousedown=(e)=>{
-    isSelecting=true;
-
-    if(!e.shiftKey){
-        anchorCell=td;
-        clearSel();
+    // 3. Prikaz
+    for(let id in results) {
+        let el = document.getElementById(id);
+        if(el && el !== document.activeElement) el.innerText = results[id];
     }
-
-    selectRange(anchorCell, td);
-};
-
-td.onmouseover=()=>{
-    if(!isSelecting) return;
-    selectRange(anchorCell, td);
-};
-
-tr.appendChild(td);
 }
 
-b.appendChild(tr);
-}
-
-document.onmouseup=()=>isSelecting=false;
-
-document.onkeydown=(e)=>{
-if(selected.length==0) return;
-
-let b=document.getElementById("body");
-
-let minR=Math.min(...selected.map(x=>x.parentElement.rowIndex));
-let maxR=Math.max(...selected.map(x=>x.parentElement.rowIndex));
-let minC=Math.min(...selected.map(x=>x.cellIndex));
-let maxC=Math.max(...selected.map(x=>x.cellIndex));
-
-function txt(){
-let t="";
-for(let r=minR;r<=maxR;r++){
-let line=[];
-for(let c=minC;c<=maxC;c++){
-line.push(b.rows[r].cells[c].innerText);
-}
-t+=line.join("\t")+"\n";
-}
-return t;
-}
-
-if(e.ctrlKey && e.key=="c"){
-navigator.clipboard.writeText(txt());
-}
-
-if(e.ctrlKey && e.key=="x"){
-navigator.clipboard.writeText(txt());
-selected.forEach(x=>x.innerText="");
-}
-};
-
-document.onpaste=(e)=>{
-let text=e.clipboardData.getData("text/plain");
-let lines=text.split("\n");
-
-let b=document.getElementById("body");
-
-let start=selected[0] || b.rows[0].cells[0];
-
-let r0=start.parentElement.rowIndex;
-let c0=start.cellIndex;
-
-lines.forEach((line,i)=>{
-let cols=line.split("\t");
-cols.forEach((v,j)=>{
-let cell=b.rows[r0+i]?.cells[c0+j];
-if(cell) cell.innerText=v;
-});
-});
-};
-
-function addRow(){rows++;build();}
-function addCol(){cols++;build();}
+function addRow() { rows++; build(); calculate(); }
+function addCol() { cols++; build(); calculate(); }
+function savePDF() { html2pdf().from(document.querySelector("table")).save(); }
 
 build();
-
 </script>
-
 </body>
 </html>
