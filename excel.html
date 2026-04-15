@@ -2,7 +2,7 @@
 <html lang="bs">
 <head>
     <meta charset="UTF-8">
-    <title>Excel Tabela - Profi</title>
+    <title>Excel Tabela - Razdvojene Tačkice</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; }
         
@@ -27,51 +27,49 @@
             font-size: 14px;
             font-weight: bold;
             cursor: pointer;
-            text-transform: uppercase;
         }
-        .btn:hover { background-color: white; color: #444; }
 
         table { border-collapse: collapse; background: white; table-layout: fixed; width: auto; }
         
-        th, td { 
-            border: 1px solid #ccc; 
-            padding: 0; 
-            position: relative;
-            overflow: hidden;
-        }
+        th, td { border: 1px solid #ccc; padding: 0; overflow: hidden; }
 
-        /* 1. KONTROLA ŠIRINE I VISINE */
-        th { background-color: #eee; min-width: 60px; resize: both; }
-        td { resize: both; }
+        /* SMANJENE KOLONE ZA ID I OPCIJE */
+        .col-id { width: 50px; font-weight: bold; background: #eee; text-align: center; }
+        .col-opc { width: 35px; color: #888; cursor: pointer; text-align: center; background: #fff; }
 
-        .col-id { width: 50px; font-weight: bold; background: #eee; resize: none; text-align: center; }
-        .col-opc { width: 35px; color: #888; cursor: pointer; resize: none; text-align: center; font-weight: bold; }
+        /* KONTROLA VISINE I ŠIRINE */
+        th { background-color: #eee; min-width: 80px; resize: both; height: 60px; }
+        td { resize: both; height: 35px; }
 
-        /* 2. TAČKICE IZNAD SLOVA */
-        .header-stack {
+        /* NOVI RED ZA TAČKICE UNUTAR TH */
+        .header-box {
             display: flex;
             flex-direction: column;
+            width: 100%;
             height: 100%;
         }
-        .dots-row {
-            height: 20px;
-            font-size: 12px;
-            color: #999;
-            background: #f9f9f9;
-            border-bottom: 1px solid #ddd;
-            cursor: pointer;
+
+        /* POSEBNA ĆELIJA IZNAD SLOVA */
+        .top-dots {
+            height: 25px;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #ccc;
             display: flex;
             justify-content: center;
             align-items: center;
+            color: #aaa;
+            font-size: 14px;
+            cursor: pointer;
         }
-        .dots-row:hover { background: #e0e0e0; color: #333; }
-        .letter-row {
+        .top-dots:hover { background-color: #e2e2e2; color: #333; }
+
+        .bottom-letter {
             flex-grow: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-weight: bold;
             font-size: 18px;
+            font-weight: bold;
         }
 
         input { 
@@ -79,18 +77,15 @@
             height: 100%; 
             border: none; 
             outline: none; 
-            padding: 5px;
-            box-sizing: border-box;
-            font-size: 16px;
             text-align: center;
+            font-size: 16px;
             background: transparent;
         }
 
-        /* Resizer drška */
         th::-webkit-resizer, td::-webkit-resizer {
             border: 5px solid transparent;
-            border-right-color: #aaa;
-            border-bottom-color: #aaa;
+            border-right-color: #999;
+            border-bottom-color: #999;
         }
     </style>
 </head>
@@ -110,8 +105,8 @@
 <table id="mainTable">
     <thead>
         <tr id="header-row">
-            <th class="col-id" style="height: 60px;">ID</th>
-            <th class="col-opc">...</th>
+            <th class="col-id">ID</th>
+            <th class="col-opc" onclick="allMenu()">...</th>
             </tr>
     </thead>
     <tbody id="table-body">
@@ -127,50 +122,41 @@
         const hr = document.getElementById('header-row');
         const tbody = document.getElementById('table-body');
 
-        // Render zaglavlja sa tačkicama IZNAD slova
-        hr.innerHTML = '<th class="col-id">ID</th><th class="col-opc" onclick="colMenu(\'ALL\')">...</th>';
+        // Render zaglavlja: Tačkice su u 'top-dots', slovo je u 'bottom-letter'
+        hr.innerHTML = '<th class="col-id">ID</th><th class="col-opc">...</th>';
         for (let j = 0; j < colCount; j++) {
             const th = document.createElement('th');
             th.style.width = "150px";
             th.innerHTML = `
-                <div class="header-stack">
-                    <div class="dots-row" onclick="colMenu('${letters[j]}')">...</div>
-                    <div class="letter-row">${letters[j]}</div>
+                <div class="header-box">
+                    <div class="top-dots" onclick="colMenu('${letters[j]}')">...</div>
+                    <div class="bottom-letter">${letters[j]}</div>
                 </div>`;
             hr.appendChild(th);
         }
 
-        // Render redova sa funkcionalnim tačkicama
+        // Render redova
         tbody.innerHTML = '';
         for (let i = 1; i <= rowCount; i++) {
             const tr = document.createElement('tr');
-            
-            // ID kolona i OPC kolona sa klikabilnim tačkama
-            let rowHTML = `<td class="col-id">${i}</td>
-                           <td class="col-opc" onclick="rowMenu(${i})">...</td>`;
-            
-            for (let j = 0; j < colCount; j++) {
-                rowHTML += `<td><input type="text"></td>`;
-            }
-            tr.innerHTML = rowHTML;
+            tr.innerHTML = `
+                <td class="col-id">${i}</td>
+                <td class="col-opc" onclick="rowMenu(${i})">...</td>
+                ${Array(colCount).fill('<td><input type="text"></td>').join('')}
+            `;
             tbody.appendChild(tr);
         }
     }
 
-    // Funkcije za menije (ovdje možeš dodati logiku za brisanje, sortiranje itd.)
-    function colMenu(col) {
-        alert("Opcije za kolonu " + col);
-    }
-
-    function rowMenu(row) {
-        alert("Opcije za red " + row);
-    }
+    function colMenu(c) { alert("Opcije za kolonu " + c); }
+    function rowMenu(r) { alert("Opcije za red " + r); }
+    function allMenu() { alert("Glavni meni"); }
 
     function addRow() { rowCount++; renderTable(); }
     function addColumn() { if(colCount < 26) { colCount++; renderTable(); } }
-
-    function exportExcel() { alert("Izvoz u Excel..."); }
-    function exportPDF() { alert("Izvoz u PDF..."); }
+    
+    function exportExcel() { alert("Exporting to Excel..."); }
+    function exportPDF() { alert("Exporting to PDF..."); }
 
     renderTable();
 </script>
