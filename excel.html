@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moja Excel Stranica - Sa Strelicama</title>
+    <title>Excel Stranica - PDF i Strelice Popravljene</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
     <style>
         body { font-family: sans-serif; margin: 20px; }
         .toolbar { margin-bottom: 20px; }
@@ -18,13 +21,13 @@
         .header-letters { background: #e0e0e0; text-align: center; font-weight: bold; }
         .header-letters td { border: 1px solid #ccc; height: 40px; position: relative; }
         
-        th, td { border: 1px solid #ccc; padding: 12px; font-size: 18px; position: relative; overflow: hidden; outline: none; }
+        th, td { border: 1px solid #ccc; padding: 12px; font-size: 18px; position: relative; outline: none; }
         th { background: #fff; text-align: left; }
 
-        /* Fokusirana ćelija (kao u Excelu) */
-        td:focus { border: 2px solid #217346; background: #e8f5e9; }
+        /* Fokus u Excel stilu */
+        td:focus { background: #f0f7ff; box-shadow: inset 0 0 0 2px #217346; }
 
-        .menu-dots { cursor: pointer; float: right; font-size: 20px; color: #888; }
+        .menu-dots { cursor: pointer; float: right; font-size: 20px; color: #888; margin-left: 10px; }
         .header-letters .menu-dots { position: absolute; right: 5px; top: 10px; }
 
         .resizer {
@@ -49,7 +52,8 @@
     <div class="toolbar">
         <button onclick="addRow()">➕ Dodaj red</button>
         <button onclick="addCol()">➕ Dodaj kolonu</button>
-        <button onclick="exportToExcel()">📊 Snimi Excel</button>
+        <button onclick="exportToExcel()">📊 Excel</button>
+        <button onclick="exportToPDF()">📄 PDF</button>
     </div>
 
     <table id="myTable">
@@ -71,8 +75,8 @@
         <tbody id="table-body">
             <tr>
                 <td>1 <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>
-                <td contenteditable="true" class="cell" oninput="izracunajSve()">Stavka 1</td>
-                <td contenteditable="true" class="cell vrijednost" oninput="izracunajSve()">100.00</td>
+                <td contenteditable="true" class="excel-cell" oninput="izracunajSve()">Stavka 1</td>
+                <td contenteditable="true" class="excel-cell vrijednost" oninput="izracunajSve()">100.00</td>
                 <td><span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>
             </tr>
         </tbody>
@@ -96,34 +100,43 @@
         let selektovaniRed = null;
         let kopiraniPodaci = null;
 
-        // --- KRETANJE STRELICAMA ---
+        // POPRAVLJENE STRELICE
         document.addEventListener('keydown', function(e) {
             const active = document.activeElement;
-            if (!active || !active.classList.contains('cell')) return;
+            if (!active || !active.classList.contains('excel-cell')) return;
 
-            const row = active.parentElement;
-            const colIndex = Array.from(row.cells).indexOf(active);
-            
-            if (e.key === "ArrowUp") {
-                const prevRow = row.previousElementSibling;
-                if (prevRow) prevRow.cells[colIndex].focus();
+            const cell = active;
+            const row = cell.parentElement;
+            const cells = Array.from(row.cells);
+            const colIndex = cells.indexOf(cell);
+            const tbody = row.parentElement;
+            const rows = Array.from(tbody.rows);
+            const rowIndex = rows.indexOf(row);
+
+            if (e.key === "ArrowUp" && rowIndex > 0) {
+                rows[rowIndex - 1].cells[colIndex].focus();
                 e.preventDefault();
-            } else if (e.key === "ArrowDown") {
-                const nextRow = row.nextElementSibling;
-                if (nextRow) nextRow.cells[colIndex].focus();
+            } else if (e.key === "ArrowDown" && rowIndex < rows.length - 1) {
+                rows[rowIndex + 1].cells[colIndex].focus();
                 e.preventDefault();
-            } else if (e.key === "ArrowLeft") {
-                if (active.selectionStart === 0 || active.innerText.length === 0) {
-                    const prevCell = active.previousElementSibling;
-                    if (prevCell && prevCell.contentEditable === "true") prevCell.focus();
+            } else if (e.key === "ArrowLeft" && colIndex > 1) {
+                // Provjera da li je kursor na početku teksta
+                let selection = window.getSelection();
+                if (selection.anchorOffset === 0) {
+                    row.cells[colIndex - 1].focus();
+                    e.preventDefault();
                 }
-            } else if (e.key === "ArrowRight") {
-                const nextCell = active.nextElementSibling;
-                if (nextCell && nextCell.contentEditable === "true") nextCell.focus();
+            } else if (e.key === "ArrowRight" && colIndex < cells.length - 2) {
+                // Provjera da li je kursor na kraju teksta
+                let selection = window.getSelection();
+                if (selection.anchorOffset === active.innerText.length) {
+                    row.cells[colIndex + 1].focus();
+                    e.preventDefault();
+                }
             }
         });
 
-        // --- RESIZER ---
+        // RESIZER
         function initResizers() {
             document.querySelectorAll('.resizer').forEach(resizer => {
                 resizer.onmousedown = function(e) {
@@ -137,7 +150,7 @@
         }
         initResizers();
 
-        // --- MENI I LOGIKA ---
+        // MENI I RAČUNANJE
         function prikaziMeni(el) {
             let menu = document.getElementById("custom-menu");
             let pasteOpt = document.getElementById("paste-option");
@@ -159,9 +172,8 @@
         }
 
         function dodajRedIspod() {
-            if (!selektovaniRed || selektovaniRed.parentNode.tagName !== 'TBODY') return;
+            if (!selektovaniRed) return;
             addRow();
-            reindex();
         }
 
         function izvrsiObrisi() {
@@ -193,8 +205,9 @@
         function addRow() {
             let tbody = document.getElementById("table-body");
             let row = tbody.insertRow();
-            row.innerHTML = `<td></td><td contenteditable="true" class="cell" oninput="izracunajSve()"></td><td contenteditable="true" class="cell vrijednost" oninput="izracunajSve()">0.00</td><td><span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>`;
+            row.innerHTML = `<td></td><td contenteditable="true" class="excel-cell" oninput="izracunajSve()"></td><td contenteditable="true" class="excel-cell vrijednost" oninput="izracunajSve()">0.00</td><td><span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>`;
             reindex();
+            izracunajSve();
         }
 
         function addCol() {
@@ -206,12 +219,28 @@
             for (let i = 1; i < table.rows.length - 1; i++) {
                 let c = table.rows[i].insertCell(cIndex);
                 if (i === 1) c.outerHTML = `<th>Nova <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></th>`;
-                else { c.contentEditable = "true"; c.className = "cell"; }
+                else { c.contentEditable = "true"; c.className = "excel-cell"; }
             }
             initResizers();
         }
 
-        function exportToExcel() { XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById("myTable")), "izvjestaj.xlsx"); }
+        // EXPORT OPCIJE
+        function exportToExcel() { 
+            XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById("myTable")), "izvjestaj.xlsx"); 
+        }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Izvjestaj", 14, 15);
+            doc.autoTable({ 
+                html: '#myTable',
+                startY: 20,
+                theme: 'grid',
+                headStyles: { fillColor: [85, 85, 85] }
+            });
+            doc.save("izvjestaj.pdf");
+        }
     </script>
 </body>
 </html>
