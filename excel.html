@@ -2,10 +2,9 @@
 <html lang="bs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inžinjer - Tabela</title>
+    <title>Inžinjer - Excel Stranica</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; }
+        body { font-family: Arial, sans-serif; margin: 0; }
         
         /* Toolbar */
         .toolbar {
@@ -14,102 +13,96 @@
             padding: 15px;
             display: flex;
             align-items: center;
-            gap: 20px;
         }
+        .btn-group { display: flex; gap: 20px; }
         .btn {
             background: none;
             border: 2px solid white;
             color: white;
             padding: 8px 15px;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: bold;
             cursor: pointer;
         }
-        .title { margin-left: auto; font-size: 24px; font-weight: bold; }
+        .title-right { margin-left: auto; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
 
-        /* Tabela */
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-        
-        /* 1. SMANJENA OPC KOLONA */
-        .col-id { width: 40px; background: #eee; font-weight: bold; }
-        .col-opc { width: 30px; color: #888; cursor: pointer; font-weight: bold; }
-
-        /* 2. STIL ZA TAČKICE U KOLONAMA A, B, C... */
-        .th-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 5px;
-        }
-        .dots { color: #888; cursor: pointer; font-size: 14px; }
-
+        /* Tabela stilovi */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: center; font-size: 18px; }
         th { background-color: #eee; }
-        input { width: 95%; border: none; outline: none; background: transparent; text-align: center; }
+
+        /* 1. SMANJENA ŠIRINA KOLONE SA TRI TAČKICE */
+        .col-opc { width: 35px; color: #888; cursor: pointer; }
+        .col-id { width: 50px; font-weight: bold; }
+
+        /* 2. TRI TAČKICE ZA A, B, C KOLONE */
+        .header-cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .header-dots {
+            position: absolute;
+            right: 5px;
+            color: #888;
+            font-size: 14px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
-<div class="toolbar">
-    <button class="btn" onclick="addRow()">+ NOVI RED</button>
-    <button class="btn" onclick="addColumn()">+ NOVA KOLONA</button>
-    <div class="title">INŽINJER</div>
-</div>
+    <div class="toolbar">
+        <div class="btn-group">
+            <button class="btn">+ NOVI RED</button>
+            <button class="btn">+ NOVA KOLONA</button>
+        </div>
+        <div class="title-right">INŽINJER</div>
+    </div>
 
-<table>
-    <thead>
-        <tr id="header-row">
-            <th class="col-id">ID</th>
-            <th class="col-opc">⋮</th> </tr>
-    </thead>
-    <tbody id="table-body">
-    </tbody>
-</table>
-
-<script>
-    let rowCount = 4;
-    let colCount = 4;
-    const colLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-
-    function renderTable() {
-        const headerRow = document.getElementById('header-row');
-        const tbody = document.getElementById('table-body');
-
-        // Render zaglavlja (A, B, C...) sa tačkicama
-        headerRow.innerHTML = '<th class="col-id">ID</th><th class="col-opc">⋮</th>';
-        for (let i = 0; i < colCount; i++) {
-            const th = document.createElement('th');
-            th.innerHTML = `
-                <div class="th-content">
-                    <span>${colLetters[i]}</span>
-                    <span class="dots">⋮</span>
-                </div>`;
-            headerRow.appendChild(th);
-        }
-
-        // Render redova
-        tbody.innerHTML = '';
-        for (let i = 1; i <= rowCount; i++) {
-            const tr = document.createElement('tr');
-            
-            // ID i OPC ćelije
-            tr.innerHTML = `<td class="col-id">${i}</td><td class="col-opc">⋮</td>`;
-            
-            // Input polja
-            for (let j = 0; j < colCount; j++) {
-                const td = document.createElement('td');
-                td.innerHTML = '<input type="text" />';
-                tr.appendChild(td);
-            }
-            tbody.appendChild(tr);
-        }
-    }
-
-    function addRow() { rowCount++; renderTable(); }
-    function addColumn() { if(colCount < colLetters.length) { colCount++; renderTable(); } }
-
-    renderTable();
-</script>
+    <table>
+        <thead>
+            <tr>
+                <th class="col-id">ID</th>
+                <th class="col-opc">⋮</th>
+                <th>
+                    <div class="header-cell">A <span class="header-dots">⋮</span></div>
+                </th>
+                <th>
+                    <div class="header-cell">B <span class="header-dots">⋮</span></div>
+                </th>
+                <th>
+                    <div class="header-cell">C <span class="header-dots">⋮</span></div>
+                </th>
+                <th>
+                    <div class="header-cell">D <span class="header-dots">⋮</span></div>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-id">1</td>
+                <td class="col-opc">⋮</td>
+                <td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td class="col-id">2</td>
+                <td class="col-opc">⋮</td>
+                <td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td class="col-id">3</td>
+                <td class="col-opc">⋮</td>
+                <td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td class="col-id">4</td>
+                <td class="col-opc">⋮</td>
+                <td></td><td></td><td></td><td></td>
+            </tr>
+        </tbody>
+    </table>
 
 </body>
 </html>
