@@ -2,23 +2,21 @@
 <html lang="bs">
 <head>
     <meta charset="UTF-8">
-    <title>Inžinjerski Excel PRO v5</title>
+    <title>Inžinjerski Excel FINAL</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; background: #f0f0f0; }
+        body { font-family: sans-serif; margin: 0; background: #f0f0f0; overflow: hidden; }
         .toolbar { background: #217346; color: white; padding: 10px; display: flex; gap: 10px; position: sticky; top: 0; z-index: 1000; }
         button { padding: 8px 15px; border: 0; border-radius: 4px; background: white; color: #217346; font-weight: bold; cursor: pointer; }
         #table-container { height: calc(100vh - 60px); overflow: auto; padding: 10px; }
-        table { border-collapse: collapse; background: white; user-select: none; }
-        td, th { border: 1px solid #ccc; min-width: 110px; height: 30px; text-align: center; outline: none; font-size: 16px; position: relative; }
-        th { background: #e2e2e2; position: sticky; top: 0; z-index: 10; cursor: pointer; }
-        th:hover { background: #d0d0d0; }
-        .row-idx { background: #e2e2e2; width: 50px; font-weight: bold; position: sticky; left: 0; z-index: 5; cursor: pointer; }
-        .row-idx:hover { background: #d0d0d0; }
+        table { border-collapse: collapse; background: white; table-layout: fixed; width: max-content; }
+        td, th { border: 1px solid #ccc; width: 120px; height: 30px; text-align: center; outline: none; font-size: 16px; overflow: hidden; }
+        th { background: #e2e2e2; position: sticky; top: 0; z-index: 10; cursor: pointer; user-select: none; }
+        .row-idx { background: #e2e2e2; width: 50px; font-weight: bold; position: sticky; left: 0; z-index: 5; cursor: pointer; user-select: none; }
         
-        /* Stilovi za selekciju */
+        /* Boje za selekciju */
         .selected { background: #c8e6c9 !important; }
-        .active-cell { border: 2px solid #217346 !important; background: #fffde7 !important; z-index: 20; }
+        .active-cell { border: 2px solid #217346 !important; background: #fffde7 !important; }
     </style>
 </head>
 <body>
@@ -45,17 +43,16 @@ function build() {
     const h = document.getElementById("header");
     const b = document.getElementById("body");
     
-    // Zaglavlje (Slova)
+    // Zaglavlje kolona (A, B, C...)
     h.innerHTML = '<th class="row-idx">ID</th>';
     for(let j=0; j<cols; j++) {
         let th = document.createElement("th");
-        let letter = String.fromCharCode(65 + j);
-        th.innerText = letter;
+        th.innerText = String.fromCharCode(65 + j);
         th.onclick = () => selectColumn(j + 1);
         h.appendChild(th);
     }
 
-    // Redovi
+    // Generisanje redova
     b.innerHTML = "";
     for(let i=1; i<=rows; i++) {
         let tr = document.createElement("tr");
@@ -73,7 +70,6 @@ function build() {
             td.innerText = results[id] || "";
 
             td.onfocus = () => {
-                clearSelection();
                 td.classList.add("active-cell");
                 if(dataStore[id]) td.innerText = dataStore[id];
             };
@@ -84,15 +80,22 @@ function build() {
                 calculate();
             };
 
-            // KRETANJE STRELICAMA
+            // NAVIGACIJA STRELICAMA - BEZ POMJERANJA REDOVA
             td.onkeydown = (e) => {
-                let r = td.parentElement.rowIndex - 1;
-                let c = td.cellIndex;
-                if (e.key === "ArrowUp") moveFocus(r - 1, c);
-                if (e.key === "ArrowDown") moveFocus(r + 1, c);
-                if (e.key === "ArrowLeft") moveFocus(r, c - 1);
-                if (e.key === "ArrowRight") moveFocus(r, c + 1);
-                if (e.key === "Enter") { e.preventDefault(); td.blur(); }
+                let r = tr.rowIndex - 1; // trenutni red
+                let c = td.cellIndex;    // trenutna kolona
+                
+                if (e.key === "ArrowUp") { e.preventDefault(); moveFocus(r - 1, c); }
+                else if (e.key === "ArrowDown") { e.preventDefault(); moveFocus(r + 1, c); }
+                else if (e.key === "ArrowLeft") { 
+                    // Pomjeri lijevo samo ako kursor nije unutar teksta ili je na početku
+                    if(window.getSelection().anchorOffset === 0) { e.preventDefault(); moveFocus(r, c - 1); }
+                }
+                else if (e.key === "ArrowRight") {
+                    // Pomjeri desno samo ako je kursor na kraju teksta
+                    if(window.getSelection().anchorOffset === td.innerText.length) { e.preventDefault(); moveFocus(r, c + 1); }
+                }
+                else if (e.key === "Enter") { e.preventDefault(); td.blur(); moveFocus(r + 1, c); }
             };
 
             tr.appendChild(td);
@@ -103,15 +106,19 @@ function build() {
 
 function moveFocus(r, c) {
     let table = document.getElementById("excelTable");
+    // Provjeri granice tabele (c=1 jer je c=0 ID kolona)
     if (r >= 0 && r < rows && c >= 1 && c <= cols) {
-        table.rows[r+1].cells[c].focus();
+        let target = table.rows[r+1].cells[c];
+        target.focus();
     }
 }
 
 function selectRow(idx) {
     clearSelection();
     let rowCells = document.getElementById("body").rows[idx].cells;
-    for(let i=1; i < rowCells.length; i++) rowCells[i].classList.add("selected");
+    for(let i=1; i < rowCells.length; i++) {
+        rowCells[i].classList.add("selected");
+    }
 }
 
 function selectColumn(idx) {
@@ -127,9 +134,11 @@ function clearSelection() {
 }
 
 function calculate() {
+    // Prvo kopiraj obične podatke
     for(let id in dataStore) {
         if(!dataStore[id].startsWith('=')) results[id] = dataStore[id];
     }
+    // Onda izračunaj formule
     for(let id in dataStore) {
         let val = dataStore[id];
         if(val.startsWith('=')) {
@@ -143,6 +152,7 @@ function calculate() {
             } catch(e) { results[id] = "#ERR"; }
         }
     }
+    // Pokaži rezultate
     for(let id in results) {
         let el = document.getElementById(id);
         if(el && el !== document.activeElement) el.innerText = results[id];
@@ -153,7 +163,7 @@ function addRow() { rows++; build(); calculate(); }
 function addCol() { cols++; build(); calculate(); }
 function savePDF() { 
     const element = document.getElementById('table-container');
-    html2pdf().from(element).set({ margin: 5, filename: 'excel.pdf', jsPDF: { orientation: 'landscape' } }).save(); 
+    html2pdf().from(element).set({ margin: 5, filename: 'tabela.pdf', jsPDF: { orientation: 'landscape' } }).save(); 
 }
 
 build();
