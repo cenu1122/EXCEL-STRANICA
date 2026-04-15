@@ -2,60 +2,45 @@
 <html lang="bs">
 <head>
     <meta charset="UTF-8">
-    <title>Inžinjerski Excel PRO v7</title>
+    <title>Inžinjerski Excel ULTRA</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body { font-family: sans-serif; margin: 0; background: #f0f0f0; overflow: hidden; }
-        .toolbar { background: #217346; color: white; padding: 10px; display: flex; gap: 10px; position: sticky; top: 0; z-index: 1000; }
+        .toolbar { background: #217346; color: white; padding: 10px; display: flex; gap: 10px; position: sticky; top: 0; z-index: 1000; align-items: center; }
         button { padding: 8px 15px; border: 0; border-radius: 4px; background: white; color: #217346; font-weight: bold; cursor: pointer; }
+        button:hover { background: #e8f5e9; }
         #table-container { height: calc(100vh - 60px); overflow: auto; padding: 10px; }
         table { border-collapse: collapse; background: white; table-layout: fixed; width: max-content; }
-        td, th { border: 1px solid #ccc; width: 120px; height: 32px; text-align: center; outline: none; font-size: 16px; }
-        th, .row-idx { background: #e2e2e2; user-select: none; cursor: pointer; font-weight: bold; }
+        td, th { border: 1px solid #ccc; width: 130px; height: 35px; text-align: center; outline: none; font-size: 16px; position: relative; }
+        th, .row-idx { background: #e2e2e2; user-select: none; font-weight: bold; }
         th { position: sticky; top: 0; z-index: 10; }
         .row-idx { position: sticky; left: 0; z-index: 5; width: 50px; }
-        .selected { background: #c8e6c9 !important; }
-        .active-cell { border: 2px solid #217346 !important; background: #fffde7 !important; }
-
-        /* NOVI DESNI KLIK MENI - STIL */
-        #custom-menu {
-            position: fixed;
-            background: #ffffff;
-            border: 1px solid #999;
-            box-shadow: 3px 3px 10px rgba(0,0,0,0.3);
-            display: none;
-            z-index: 5000;
-            width: 200px;
-            border-radius: 4px;
-            padding: 5px 0;
+        .active-cell { border: 2px solid #217346 !important; background: #fffde7 !important; z-index: 20; }
+        
+        /* NOVI KONTEKSTUALNI MENI */
+        #ctx-menu {
+            position: fixed; display: none; background: white; border: 1px solid #aaa;
+            box-shadow: 3px 3px 10px rgba(0,0,0,0.2); z-index: 10000; width: 180px; border-radius: 3px;
         }
-        .menu-item {
-            padding: 8px 20px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            justify-content: space-between;
-        }
-        .menu-item:hover { background: #217346; color: white; }
-        .menu-sep { border-bottom: 1px solid #eee; margin: 4px 0; }
+        .ctx-item { padding: 10px 15px; cursor: pointer; font-size: 14px; color: #333; }
+        .ctx-item:hover { background: #217346; color: white; }
     </style>
 </head>
-<body onclick="hideMenu()">
+<body onclick="hideCtx()">
 
 <div class="toolbar">
-    <button onclick="addRow()">+ Red</button>
-    <button onclick="addCol()">+ Kolona</button>
-    <button onclick="savePDF()" style="background: gold; color: black; margin-left: auto;">SAČUVAJ PDF</button>
+    <button onclick="addRow()">+ Dodaj Red</button>
+    <button onclick="addCol()">+ Dodaj Kolonu</button>
+    <div style="flex-grow: 1;"></div>
+    <button onclick="exportExcel()" style="background: #1d6f42; color: white;">💾 SNIMI EXCEL (.xlsx)</button>
+    <button onclick="savePDF()" style="background: #d32f2f; color: white;">📄 SNIMI PDF</button>
 </div>
 
-<div id="custom-menu">
-    <div class="menu-item" onclick="insertRowBelow()">Dodaj red ispod</div>
-    <div class="menu-item" onclick="deleteCurrentRow()">Obriši ovaj red</div>
-    <div class="menu-sep"></div>
-    <div class="menu-item" onclick="insertColRight()">Dodaj kolonu desno</div>
-    <div class="menu-item" onclick="deleteCurrentCol()">Obriši ovu kolonu</div>
-    <div class="menu-sep"></div>
-    <div class="menu-item" onclick="clearCellContent()">Očisti ćeliju</div>
+<div id="ctx-menu">
+    <div class="ctx-item" onclick="addRow()">Ubaci red ispod</div>
+    <div class="ctx-item" onclick="deleteRow()">Obriši ovaj red</div>
+    <div class="ctx-item" onclick="clearCell()">Očisti ćeliju</div>
 </div>
 
 <div id="table-container">
@@ -67,9 +52,8 @@
 
 <script>
 let rows = 100, cols = 15;
-let dataStore = {}; 
-let results = {};
-let targetCell = null;
+let dataStore = {};
+let currentCell = null;
 
 function build() {
     const h = document.getElementById("header");
@@ -78,7 +62,6 @@ function build() {
     for(let j=0; j<cols; j++) {
         let th = document.createElement("th");
         th.innerText = String.fromCharCode(65 + j);
-        th.onclick = () => selectColumn(j + 1);
         h.appendChild(th);
     }
     b.innerHTML = "";
@@ -87,7 +70,6 @@ function build() {
         let idxTd = document.createElement("td");
         idxTd.className = "row-idx";
         idxTd.innerText = i;
-        idxTd.onclick = () => selectRow(i - 1);
         tr.appendChild(idxTd);
 
         for(let j=0; j<cols; j++) {
@@ -95,18 +77,19 @@ function build() {
             let td = document.createElement("td");
             td.contentEditable = true;
             td.id = id;
-            td.innerText = results[id] || "";
 
-            // OVO BLOKIRA SISTEMSKI MENI I OTVARA TVOJ
+            // Forsiranje našeg desnog klika
             td.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
-                targetCell = td;
-                showMenu(e.clientX, e.clientY);
-            });
+                e.stopPropagation();
+                showCtx(e.clientX, e.clientY, td);
+                return false;
+            }, {capture: true});
 
-            td.onfocus = () => { td.classList.add("active-cell"); if(dataStore[id]) td.innerText = dataStore[id]; };
-            td.onblur = () => { td.classList.remove("active-cell"); dataStore[id] = td.innerText; calculate(); };
+            td.onfocus = () => { td.classList.add("active-cell"); };
+            td.onblur = () => { td.classList.remove("active-cell"); dataStore[id] = td.innerText; };
 
+            // Navigacija strelicama
             td.onkeydown = (e) => {
                 let r = tr.rowIndex - 1, c = td.cellIndex;
                 if (e.key === "ArrowUp") { e.preventDefault(); moveFocus(r - 1, c); }
@@ -121,52 +104,45 @@ function build() {
     }
 }
 
-function showMenu(x, y) {
-    const menu = document.getElementById("custom-menu");
-    menu.style.display = "block";
-    menu.style.left = x + "px";
-    menu.style.top = y + "px";
+function showCtx(x, y, cell) {
+    let m = document.getElementById("ctx-menu");
+    m.style.display = "block";
+    m.style.left = x + "px";
+    m.style.top = y + "px";
+    currentCell = cell;
 }
 
-function hideMenu() { document.getElementById("custom-menu").style.display = "none"; }
+function hideCtx() { document.getElementById("ctx-menu").style.display = "none"; }
 
 function moveFocus(r, c) {
     let table = document.getElementById("excelTable");
     if (r >= 0 && r < rows && c >= 1 && c <= cols) table.rows[r+1].cells[c].focus();
 }
 
-function selectRow(idx) { clearSelection(); let rowCells = document.getElementById("body").rows[idx].cells; for(let i=1; i < rowCells.length; i++) rowCells[i].classList.add("selected"); }
-function selectColumn(idx) { clearSelection(); let bodyRows = document.getElementById("body").rows; for(let i=0; i < bodyRows.length; i++) bodyRows[i].cells[idx].classList.add("selected"); }
-function clearSelection() { document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected')); }
+function deleteRow() { if(currentCell) currentCell.parentElement.remove(); hideCtx(); }
+function clearCell() { if(currentCell) currentCell.innerText = ""; hideCtx(); }
 
-// FUNKCIJE IZ DESNOG KLIKA
-function insertRowBelow() { rows++; build(); calculate(); }
-function deleteCurrentRow() { if(targetCell) { targetCell.parentElement.remove(); rows--; } }
-function clearCellContent() { if(targetCell) { targetCell.innerText = ""; dataStore[targetCell.id] = ""; calculate(); } }
-function insertColRight() { cols++; build(); calculate(); }
-function deleteCurrentCol() { alert("Brisanje kolone uspješno."); }
-
-function calculate() {
-    for(let id in dataStore) { if(!dataStore[id].startsWith('=')) results[id] = dataStore[id]; }
-    for(let id in dataStore) {
-        let val = dataStore[id];
-        if(val.startsWith('=')) {
-            try {
-                let formula = val.substring(1).toUpperCase();
-                let processed = formula.replace(/[A-Z][0-9]+/g, (match) => results[match] || 0);
-                results[id] = eval(processed);
-            } catch(e) { results[id] = "#ERR"; }
-        }
-    }
-    for(let id in results) { 
-        let el = document.getElementById(id); 
-        if(el && el !== document.activeElement) el.innerText = results[id]; 
-    }
+// FUNKCIJE ZA SNIMANJE
+function exportExcel() {
+    let table = document.getElementById("excelTable");
+    let wb = XLSX.utils.table_to_book(table);
+    XLSX.writeFile(wb, "Proracun_Izvoz.xlsx");
 }
 
-function addRow() { rows++; build(); calculate(); }
-function addCol() { cols++; build(); calculate(); }
-function savePDF() { html2pdf().from(document.getElementById('table-container')).save(); }
+function savePDF() {
+    const element = document.getElementById('table-container');
+    const opt = {
+        margin: 5,
+        filename: 'Proracun.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+    html2pdf().set(opt).from(element).save();
+}
+
+function addRow() { rows++; build(); }
+function addCol() { cols++; build(); }
 
 build();
 </script>
