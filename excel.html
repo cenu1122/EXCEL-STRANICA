@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel Stranica - Sačuvan Sadržaj</title>
+    <title>Sigurni Excel - Čuvanje radi</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
@@ -14,156 +14,105 @@
         button { 
             background: #217346; color: white; border: none; 
             padding: 10px 15px; font-size: 16px; font-weight: bold; 
-            cursor: pointer; margin-right: 10px; border-radius: 4px; transition: 0.2s;
+            cursor: pointer; margin-right: 10px; border-radius: 4px;
         }
-        button:hover { background: #1a5c38; }
-        button.pdf-btn { background: #d32f2f; }
-        button.clear-btn { background: #555; }
-
-        table { border-collapse: collapse; table-layout: fixed; width: 100%; border: 1px solid #ccc; background: white; }
-        .header-letters { background: #e0e0e0; text-align: center; font-weight: bold; }
-        .header-letters td { border: 1px solid #ccc; height: 40px; position: relative; }
+        .save-btn { background: #0078d4; }
+        .clear-btn { background: #555; }
         
-        th, td { border: 1px solid #ccc; padding: 12px; font-size: 18px; position: relative; outline: none; }
-        th { background: #f9f9f9; text-align: left; }
-
+        table { border-collapse: collapse; width: 100%; background: white; border: 1px solid #ccc; }
+        .header-letters { background: #e0e0e0; text-align: center; }
+        th, td { border: 1px solid #ccc; padding: 10px; outline: none; }
         td:focus { background: #f0f7ff; box-shadow: inset 0 0 0 2px #217346; }
 
-        .menu-dots { cursor: pointer; float: right; font-size: 20px; color: #888; margin-left: 10px; }
-        .header-letters .menu-dots { position: absolute; right: 5px; top: 10px; }
-
-        .resizer {
-            position: absolute; right: 0; top: 0; width: 5px; height: 100%;
-            cursor: col-resize; user-select: none; z-index: 10;
+        #status-poruka {
+            position: fixed; top: 10px; right: 10px; background: #217346; color: white;
+            padding: 10px; border-radius: 5px; display: none; z-index: 2000;
         }
-        .resizer:hover { background: #0078d4; }
-
-        #custom-menu {
-            display: none; position: absolute; background: white; 
-            border: 1px solid #ccc; box-shadow: 4px 4px 10px rgba(0,0,0,0.2); 
-            z-index: 1000; min-width: 180px; border-radius: 4px;
-        }
-        #custom-menu div { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 16px; display: flex; align-items: center; gap: 10px; }
-        #custom-menu div:hover { background: #f0f0f0; }
-        
-        .total-row { background: #f5f5f5; font-weight: bold; }
     </style>
 </head>
 <body>
 
+    <div id="status-poruka">✅ Podaci sačuvani!</div>
+
     <div class="toolbar">
         <button onclick="addRow()">➕ Dodaj red</button>
-        <button onclick="exportToExcel()">📊 Snimi kao Excel</button>
-        <button class="pdf-btn" onclick="exportToPDF()">📄 Snimi kao PDF</button>
-        <button class="clear-btn" onclick="obrisiSve()">🧹 Obriši sve podatke</button>
-        <small style="color: #666; margin-left: 20px;">* Podaci se automatski čuvaju u pretraživaču.</small>
+        <button class="save-btn" onclick="saveToLocal()">💾 RUČNO SNIMI</button>
+        <button onclick="exportToExcel()">📊 Excel</button>
+        <button class="clear-btn" onclick="obrisiSve()">🧹 Obriši sve</button>
     </div>
 
     <table id="myTable">
         <thead>
-            <tr class="header-letters" id="letters-row">
-                <td style="width: 70px;"></td>
-                <td style="width: 250px;">A <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span><div class="resizer"></div></td>
-                <td style="width: 150px;">B <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span><div class="resizer"></div></td>
-                <td style="width: 50px;"></td>
-            </tr>
-            <tr>
-                <th>ID</th>
-                <th>Naziv Stavke</th>
-                <th>Vrijednost (KM)</th>
-                <th></th>
+            <tr class="header-letters">
+                <td style="width: 50px;">ID</td>
+                <td>Naziv Stavke (A)</td>
+                <td style="width: 150px;">Vrijednost (B)</td>
             </tr>
         </thead>
         <tbody id="table-body">
             </tbody>
         <tfoot>
-            <tr class="total-row">
+            <tr style="background: #eee; font-weight: bold;">
                 <td colspan="2" style="text-align: right;">UKUPNO:</td>
                 <td id="ukupno-polje">0.00</td>
-                <td></td>
             </tr>
         </tfoot>
     </table>
 
-    <div id="custom-menu">
-        <div onclick="dodajRedIspod()">➕ Dodaj red ispod</div>
-        <div onclick="izvrsiObrisi()" style="color: red;">🗑️ Obriši red</div>
-    </div>
-
     <script>
-        let selektovaniRed = null;
-
-        // --- FUNKCIJE ZA ČUVANJE (LocalStorage) ---
-        
+        // Glavna funkcija za snimanje
         function saveToLocal() {
             const rows = [];
-            document.querySelectorAll("#table-body tr").forEach(tr => {
-                const rowData = {
+            const tableRows = document.querySelectorAll("#table-body tr");
+            
+            tableRows.forEach(tr => {
+                rows.push({
                     naziv: tr.cells[1].innerText,
                     vrijednost: tr.cells[2].innerText
-                };
-                rows.push(rowData);
+                });
             });
+
             localStorage.setItem("mojExcelData", JSON.stringify(rows));
+            
+            // Pokaži poruku da je snimljeno
+            const status = document.getElementById("status-poruka");
+            status.style.display = "block";
+            setTimeout(() => { status.style.display = "none"; }, 1500);
+            
+            izracunajSve();
         }
 
+        // Glavna funkcija za učitavanje
         function loadFromLocal() {
-            const data = localStorage.getItem("mojExcelData");
+            const sacuvaniPodaci = localStorage.getItem("mojExcelData");
             const tbody = document.getElementById("table-body");
-            tbody.innerHTML = ""; // Očisti trenutno
+            tbody.innerHTML = "";
 
-            if (data) {
-                const rows = JSON.parse(data);
-                rows.forEach(item => {
-                    let row = tbody.insertRow();
-                    row.innerHTML = `
-                        <td></td>
-                        <td contenteditable="true" class="excel-cell" oninput="updateAction()">${item.naziv}</td>
-                        <td contenteditable="true" class="excel-cell vrijednost" oninput="updateAction()">${item.vrijednost}</td>
-                        <td><span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>`;
+            if (sacuvaniPodaci) {
+                const rows = JSON.parse(sacuvaniPodaci);
+                rows.forEach((item, index) => {
+                    unesiRedUTabelu(index + 1, item.naziv, item.vrijednost);
                 });
             } else {
-                addRow(); // Dodaj prazan red ako nema podataka
+                unesiRedUTabelu(1, "", "0.00");
             }
-            reindex();
             izracunajSve();
         }
 
-        function updateAction() {
-            izracunajSve();
-            saveToLocal();
+        function unesiRedUTabelu(id, naziv, vrijednost) {
+            const tbody = document.getElementById("table-body");
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td style="text-align:center; color:#888;">${id}</td>
+                <td contenteditable="true" class="excel-cell" onblur="saveToLocal()">${naziv}</td>
+                <td contenteditable="true" class="excel-cell vrijednost" onblur="saveToLocal()">${vrijednost}</td>
+            `;
         }
-
-        function obrisiSve() {
-            if(confirm("Jeste li sigurni da želite obrisati sve podatke?")) {
-                localStorage.removeItem("mojExcelData");
-                location.reload();
-            }
-        }
-
-        // --- OSTALE FUNKCIJE ---
-
-        document.addEventListener('DOMContentLoaded', () => {
-            loadFromLocal();
-            initResizers();
-        });
 
         function addRow() {
-            let tbody = document.getElementById("table-body");
-            let row = tbody.insertRow();
-            row.innerHTML = `
-                <td></td>
-                <td contenteditable="true" class="excel-cell" oninput="updateAction()"></td>
-                <td contenteditable="true" class="excel-cell vrijednost" oninput="updateAction()">0.00</td>
-                <td><span class="menu-dots" onclick="prikaziMeni(this)">⋮</span></td>`;
-            reindex();
-            updateAction();
-        }
-
-        function reindex() {
-            document.querySelectorAll("#table-body tr").forEach((row, i) => {
-                row.cells[0].innerHTML = (i + 1) + ` <span class="menu-dots" onclick="prikaziMeni(this)">⋮</span>`;
-            });
+            const id = document.querySelectorAll("#table-body tr").length + 1;
+            unesiRedUTabelu(id, "", "0.00");
+            saveToLocal();
         }
 
         function izracunajSve() {
@@ -175,80 +124,20 @@
             document.getElementById('ukupno-polje').innerText = suma.toFixed(2);
         }
 
-        function prikaziMeni(el) {
-            let menu = document.getElementById("custom-menu");
-            let e = window.event; 
-            e.stopPropagation();
-            selektovaniRed = el.closest('tr');
-            menu.style.display = "block";
-            menu.style.left = e.pageX + "px"; 
-            menu.style.top = e.pageY + "px";
-        }
-
-        window.onclick = () => document.getElementById("custom-menu").style.display = "none";
-
-        function dodajRedIspod() {
-            addRow();
-        }
-
-        function izvrsiObrisi() {
-            if (selektovaniRed) {
-                selektovaniRed.remove();
-                reindex();
-                updateAction();
+        function obrisiSve() {
+            if(confirm("Brišeš sve iz memorije?")) {
+                localStorage.removeItem("mojExcelData");
+                location.reload();
             }
         }
 
-        function initResizers() {
-            document.querySelectorAll('.resizer').forEach(resizer => {
-                resizer.onmousedown = function(e) {
-                    let el = e.target.parentElement;
-                    let startX = e.pageX;
-                    let startWidth = el.offsetWidth;
-                    document.onmousemove = (e) => el.style.width = (startWidth + (e.pageX - startX)) + 'px';
-                    document.onmouseup = () => { document.onmousemove = null; document.onmouseup = null; };
-                };
-            });
-        }
-
-        // --- EXPORT ---
         function exportToExcel() { 
             XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById("myTable")), "izvjestaj.xlsx"); 
         }
 
-        function exportToPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.text("Izvjestaj", 14, 15);
-            doc.autoTable({ 
-                html: '#myTable',
-                startY: 20,
-                theme: 'grid',
-                headStyles: { fillColor: [33, 115, 70] }
-            });
-            doc.save("izvjestaj.pdf");
-        }
+        // Pokreni učitavanje čim se stranica otvori
+        window.onload = loadFromLocal;
 
-        // Navigacija strelicama (zadržana iz tvog koda)
-        document.addEventListener('keydown', function(e) {
-            const active = document.activeElement;
-            if (!active || !active.classList.contains('excel-cell')) return;
-            const cell = active;
-            const row = cell.parentElement;
-            const cells = Array.from(row.cells);
-            const colIndex = cells.indexOf(cell);
-            const tbody = row.parentElement;
-            const rows = Array.from(tbody.rows);
-            const rowIndex = rows.indexOf(row);
-
-            if (e.key === "ArrowUp" && rowIndex > 0) {
-                rows[rowIndex - 1].cells[colIndex].focus();
-                e.preventDefault();
-            } else if (e.key === "ArrowDown" && rowIndex < rows.length - 1) {
-                rows[rowIndex + 1].cells[colIndex].focus();
-                e.preventDefault();
-            }
-        });
     </script>
 </body>
 </html>
