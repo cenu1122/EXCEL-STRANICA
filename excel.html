@@ -3,54 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sigurni Excel - Čuvanje radi</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-    
+    <title>Moja Excel Baza</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f9; }
-        .toolbar { margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f7f6; }
+        .toolbar { 
+            margin-bottom: 20px; padding: 15px; background: white; 
+            border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+        }
         button { 
-            background: #217346; color: white; border: none; 
-            padding: 10px 15px; font-size: 16px; font-weight: bold; 
-            cursor: pointer; margin-right: 10px; border-radius: 4px;
+            padding: 10px 15px; cursor: pointer; border: none; border-radius: 4px; 
+            font-weight: bold; transition: 0.2s;
         }
-        .save-btn { background: #0078d4; }
-        .clear-btn { background: #555; }
+        .btn-add { background: #217346; color: white; }
+        .btn-save { background: #0078d4; color: white; }
+        .btn-open { background: #ff9800; color: white; }
+        .btn-clear { background: #555; color: white; }
         
-        table { border-collapse: collapse; width: 100%; background: white; border: 1px solid #ccc; }
-        .header-letters { background: #e0e0e0; text-align: center; }
-        th, td { border: 1px solid #ccc; padding: 10px; outline: none; }
+        table { border-collapse: collapse; width: 100%; background: white; }
+        th, td { border: 1px solid #ccc; padding: 12px; outline: none; }
+        th { background: #f8f9fa; text-align: left; }
         td:focus { background: #f0f7ff; box-shadow: inset 0 0 0 2px #217346; }
-
-        #status-poruka {
-            position: fixed; top: 10px; right: 10px; background: #217346; color: white;
-            padding: 10px; border-radius: 5px; display: none; z-index: 2000;
-        }
+        
+        .status { font-size: 13px; color: #666; }
+        #fileInput { display: none; } /* Sakriven input za otvaranje fajlova */
     </style>
 </head>
 <body>
 
-    <div id="status-poruka">✅ Podaci sačuvani!</div>
-
     <div class="toolbar">
-        <button onclick="addRow()">➕ Dodaj red</button>
-        <button class="save-btn" onclick="saveToLocal()">💾 RUČNO SNIMI</button>
-        <button onclick="exportToExcel()">📊 Excel</button>
-        <button class="clear-btn" onclick="obrisiSve()">🧹 Obriši sve</button>
+        <button class="btn-add" onclick="addRow()">➕ Dodaj red</button>
+        <button class="btn-save" onclick="snimiKaoFajl()">💾 Snimi kao FAJL</button>
+        
+        <button class="btn-open" onclick="document.getElementById('fileInput').click()">📂 Otvori FAJL</button>
+        <input type="file" id="fileInput" accept=".json" onchange="otvoriFajl(event)">
+        
+        <button class="btn-clear" onclick="obrisiSve()">🧹 Resetuj tabelu</button>
+        <span class="status" id="status-text">Spremno.</span>
     </div>
 
     <table id="myTable">
         <thead>
-            <tr class="header-letters">
-                <td style="width: 50px;">ID</td>
-                <td>Naziv Stavke (A)</td>
-                <td style="width: 150px;">Vrijednost (B)</td>
+            <tr>
+                <th style="width: 50px;">ID</th>
+                <th>Naziv Stavke</th>
+                <th style="width: 200px;">Vrijednost (KM)</th>
             </tr>
         </thead>
-        <tbody id="table-body">
-            </tbody>
+        <tbody id="table-body"></tbody>
         <tfoot>
             <tr style="background: #eee; font-weight: bold;">
                 <td colspan="2" style="text-align: right;">UKUPNO:</td>
@@ -60,84 +60,118 @@
     </table>
 
     <script>
-        // Glavna funkcija za snimanje
-        function saveToLocal() {
-            const rows = [];
-            const tableRows = document.querySelectorAll("#table-body tr");
+        // --- 1. SNIMANJE NA KOMPJUTER ---
+        function snimiKaoFajl() {
+            let podaci = pokupiPodatkeIzTabele();
+            let blob = new Blob([JSON.stringify(podaci, null, 2)], {type: "application/json"});
             
-            tableRows.forEach(tr => {
+            // Traži od korisnika ime fajla
+            let imeFajla = prompt("Unesite ime fajla:", "tabela_podaci");
+            if (!imeFajla) return;
+
+            let a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = imeFajla + ".json";
+            a.click();
+            
+            prikaziStatus("Fajl snimljen!");
+        }
+
+        // --- 2. OTVARANJE FAJLA SA KOMPJUTERA ---
+        function otvoriFajl(event) {
+            let file = event.target.files[0];
+            if (!file) return;
+
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let podaci = JSON.parse(e.target.result);
+                    popuniTabelu(podaci);
+                    sacuvajULocalStorage(); // Zapamti ovaj učitani fajl i za F5
+                    prikaziStatus("Fajl učitan!");
+                } catch (err) {
+                    alert("Greška pri čitanju fajla!");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- POMOĆNE FUNKCIJE ---
+
+        function pokupiPodatkeIzTabele() {
+            let rows = [];
+            document.querySelectorAll("#table-body tr").forEach(tr => {
                 rows.push({
-                    naziv: tr.cells[1].innerText,
-                    vrijednost: tr.cells[2].innerText
+                    n: tr.cells[1].innerText,
+                    v: tr.cells[2].innerText
                 });
             });
-
-            localStorage.setItem("mojExcelData", JSON.stringify(rows));
-            
-            // Pokaži poruku da je snimljeno
-            const status = document.getElementById("status-poruka");
-            status.style.display = "block";
-            setTimeout(() => { status.style.display = "none"; }, 1500);
-            
-            izracunajSve();
+            return rows;
         }
 
-        // Glavna funkcija za učitavanje
-        function loadFromLocal() {
-            const sacuvaniPodaci = localStorage.getItem("mojExcelData");
-            const tbody = document.getElementById("table-body");
+        function popuniTabelu(podaci) {
+            let tbody = document.getElementById("table-body");
             tbody.innerHTML = "";
-
-            if (sacuvaniPodaci) {
-                const rows = JSON.parse(sacuvaniPodaci);
-                rows.forEach((item, index) => {
-                    unesiRedUTabelu(index + 1, item.naziv, item.vrijednost);
-                });
-            } else {
-                unesiRedUTabelu(1, "", "0.00");
-            }
+            podaci.forEach((item, index) => {
+                let row = tbody.insertRow();
+                row.innerHTML = `
+                    <td style="text-align:center; color:#999;">${index + 1}</td>
+                    <td contenteditable="true" oninput="autoSave()">${item.n}</td>
+                    <td contenteditable="true" oninput="autoSave()">${item.v}</td>
+                `;
+            });
             izracunajSve();
         }
 
-        function unesiRedUTabelu(id, naziv, vrijednost) {
-            const tbody = document.getElementById("table-body");
-            const row = tbody.insertRow();
-            row.innerHTML = `
-                <td style="text-align:center; color:#888;">${id}</td>
-                <td contenteditable="true" class="excel-cell" onblur="saveToLocal()">${naziv}</td>
-                <td contenteditable="true" class="excel-cell vrijednost" onblur="saveToLocal()">${vrijednost}</td>
-            `;
+        function autoSave() {
+            sacuvajULocalStorage();
+            izracunajSve();
         }
 
-        function addRow() {
-            const id = document.querySelectorAll("#table-body tr").length + 1;
-            unesiRedUTabelu(id, "", "0.00");
-            saveToLocal();
+        function sacuvajULocalStorage() {
+            localStorage.setItem("zadnje_stanje", JSON.stringify(pokupiPodatkeIzTabele()));
         }
 
         function izracunajSve() {
             let suma = 0;
-            document.querySelectorAll('.vrijednost').forEach(p => {
-                let val = p.innerText.replace(',', '.').trim();
+            document.querySelectorAll("#table-body tr").forEach(tr => {
+                let val = tr.cells[2].innerText.replace(',', '.').trim();
                 suma += parseFloat(val) || 0;
             });
-            document.getElementById('ukupno-polje').innerText = suma.toFixed(2);
+            document.getElementById("ukupno-polje").innerText = suma.toFixed(2);
+        }
+
+        function addRow() {
+            let tbody = document.getElementById("table-body");
+            let row = tbody.insertRow();
+            let id = tbody.rows.length;
+            row.innerHTML = `
+                <td style="text-align:center; color:#999;">${id}</td>
+                <td contenteditable="true" oninput="autoSave()"></td>
+                <td contenteditable="true" oninput="autoSave()">0.00</td>
+            `;
+            autoSave();
         }
 
         function obrisiSve() {
-            if(confirm("Brišeš sve iz memorije?")) {
-                localStorage.removeItem("mojExcelData");
+            if(confirm("Resetovati tabelu?")) {
+                localStorage.removeItem("zadnje_stanje");
                 location.reload();
             }
         }
 
-        function exportToExcel() { 
-            XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById("myTable")), "izvjestaj.xlsx"); 
+        function prikaziStatus(tekst) {
+            let s = document.getElementById("status-text");
+            s.innerText = tekst;
+            setTimeout(() => s.innerText = "Spremno.", 2000);
         }
 
-        // Pokreni učitavanje čim se stranica otvori
-        window.onload = loadFromLocal;
-
+        // Učitaj zadnje stanje kad se otvori stranica
+        window.onload = () => {
+            let proslo = localStorage.getItem("zadnje_stanje");
+            if (proslo) popuniTabelu(JSON.parse(proslo));
+            else addRow();
+        };
     </script>
 </body>
 </html>
