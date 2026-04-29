@@ -16,23 +16,28 @@
             font-weight: bold; transition: 0.2s;
         }
         .btn-add { background: #217346; color: white; }
+        .btn-col { background: #2b579a; color: white; } /* Novo dugme */
         .btn-save { background: #0078d4; color: white; }
         .btn-open { background: #ff9800; color: white; }
         .btn-clear { background: #555; color: white; }
         
         table { border-collapse: collapse; width: 100%; background: white; }
-        th, td { border: 1px solid #ccc; padding: 12px; outline: none; }
-        th { background: #f8f9fa; text-align: left; }
+        th, td { border: 1px solid #ccc; padding: 12px; outline: none; min-width: 50px; }
+        th { background: #f8f9fa; text-align: left; position: relative; }
         td:focus { background: #f0f7ff; box-shadow: inset 0 0 0 2px #217346; }
+
+        /* Stil za duplikate */
+        .duplicate { background-color: #ffcccc !important; color: #b91c1c; font-weight: bold; }
         
         .status { font-size: 13px; color: #666; }
-        #fileInput { display: none; } /* Sakriven input za otvaranje fajlova */
+        #fileInput { display: none; }
     </style>
 </head>
 <body>
 
     <div class="toolbar">
         <button class="btn-add" onclick="addRow()">➕ Dodaj red</button>
+        <button class="btn-col" onclick="addColumn()">➕ Dodaj kolonu</button>
         <button class="btn-save" onclick="snimiKaoFajl()">💾 Snimi kao FAJL</button>
         
         <button class="btn-open" onclick="document.getElementById('fileInput').click()">📂 Otvori FAJL</button>
@@ -44,67 +49,114 @@
 
     <table id="myTable">
         <thead>
-            <tr>
+            <tr id="header-row">
                 <th style="width: 50px;">ID</th>
-                <th>Naziv Stavke</th>
-                <th style="width: 200px;">Vrijednost (KM)</th>
+                <th contenteditable="true">Naziv Stavke</th>
+                <th style="width: 200px;" contenteditable="true">Vrijednost (KM)</th>
             </tr>
         </thead>
         <tbody id="table-body"></tbody>
         <tfoot>
             <tr style="background: #eee; font-weight: bold;">
-                <td colspan="2" style="text-align: right;">UKUPNO:</td>
+                <td id="total-label-cell" colspan="2" style="text-align: right;">UKUPNO:</td>
                 <td id="ukupno-polje">0.00</td>
-            </tr>
+                </tr>
         </tfoot>
     </table>
 
     <script>
-        // --- 1. SNIMANJE NA KOMPJUTER ---
+        // --- NOVE FUNKCIJE ZA DUPLIKATE I KOLONE ---
+
+        function addColumn() {
+            let headerRow = document.getElementById("header-row");
+            let tbody = document.getElementById("table-body");
+            let tfootRow = document.querySelector("tfoot tr");
+
+            // 1. Dodaj u header
+            let newTh = document.createElement("th");
+            newTh.innerText = "Nova Kolona";
+            newTh.contentEditable = "true";
+            headerRow.appendChild(newTh);
+
+            // 2. Dodaj u svaki red u body-u
+            Array.from(tbody.rows).forEach(row => {
+                let newCell = row.insertCell();
+                newCell.contentEditable = "true";
+                newCell.addEventListener('input', autoSave);
+            });
+
+            // 3. Popravi footer (povećaj colspan za "UKUPNO")
+            let labelCell = document.getElementById("total-label-cell");
+            labelCell.colSpan = headerRow.cells.length - 1;
+            
+            autoSave();
+        }
+
+        function checkDuplicates() {
+            let cells = document.querySelectorAll("#table-body td[contenteditable='true']");
+            let values = {};
+
+            // Očisti prethodna označavanja
+            cells.forEach(cell => cell.classList.remove("duplicate"));
+
+            // Prođi i nađi duplikate
+            cells.forEach(cell => {
+                let txt = cell.innerText.trim();
+                if (txt.length > 2) { // Provjeravaj samo ako ima više od 2 znaka (da ne boji prazno)
+                    if (values[txt]) {
+                        values[txt].push(cell);
+                    } else {
+                        values[txt] = [cell];
+                    }
+                }
+            });
+
+            // Označi crvenom
+            for (let key in values) {
+                if (values[key].length > 1) {
+                    values[key].forEach(c => c.classList.add("duplicate"));
+                }
+            }
+        }
+
+        // --- TVOJE ORIGINALNE FUNKCIJE (MODIFIKOVANE) ---
+
         function snimiKaoFajl() {
             let podaci = pokupiPodatkeIzTabele();
             let blob = new Blob([JSON.stringify(podaci, null, 2)], {type: "application/json"});
-            
-            // Traži od korisnika ime fajla
             let imeFajla = prompt("Unesite ime fajla:", "tabela_podaci");
             if (!imeFajla) return;
-
             let a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
             a.download = imeFajla + ".json";
             a.click();
-            
             prikaziStatus("Fajl snimljen!");
         }
 
-        // --- 2. OTVARANJE FAJLA SA KOMPJUTERA ---
         function otvoriFajl(event) {
             let file = event.target.files[0];
             if (!file) return;
-
             let reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     let podaci = JSON.parse(e.target.result);
                     popuniTabelu(podaci);
-                    sacuvajULocalStorage(); // Zapamti ovaj učitani fajl i za F5
+                    sacuvajULocalStorage();
                     prikaziStatus("Fajl učitan!");
-                } catch (err) {
-                    alert("Greška pri čitanju fajla!");
-                }
+                } catch (err) { alert("Greška pri čitanju fajla!"); }
             };
             reader.readAsText(file);
         }
 
-        // --- POMOĆNE FUNKCIJE ---
-
         function pokupiPodatkeIzTabele() {
             let rows = [];
             document.querySelectorAll("#table-body tr").forEach(tr => {
-                rows.push({
-                    n: tr.cells[1].innerText,
-                    v: tr.cells[2].innerText
-                });
+                let rowData = [];
+                // Skupljamo sve ćelije osim prve (ID)
+                for (let i = 1; i < tr.cells.length; i++) {
+                    rowData.push(tr.cells[i].innerText);
+                }
+                rows.push(rowData);
             });
             return rows;
         }
@@ -112,20 +164,28 @@
         function popuniTabelu(podaci) {
             let tbody = document.getElementById("table-body");
             tbody.innerHTML = "";
-            podaci.forEach((item, index) => {
+            podaci.forEach((rowData, index) => {
                 let row = tbody.insertRow();
-                row.innerHTML = `
-                    <td style="text-align:center; color:#999;">${index + 1}</td>
-                    <td contenteditable="true" oninput="autoSave()">${item.n}</td>
-                    <td contenteditable="true" oninput="autoSave()">${item.v}</td>
-                `;
+                let idCell = row.insertCell();
+                idCell.style.textAlign = "center";
+                idCell.style.color = "#999";
+                idCell.innerText = index + 1;
+
+                rowData.forEach(val => {
+                    let cell = row.insertCell();
+                    cell.contentEditable = "true";
+                    cell.innerText = val;
+                    cell.oninput = autoSave;
+                });
             });
             izracunajSve();
+            checkDuplicates();
         }
 
         function autoSave() {
             sacuvajULocalStorage();
             izracunajSve();
+            checkDuplicates(); // Pozivamo provjeru duplikata na svaki unos
         }
 
         function sacuvajULocalStorage() {
@@ -135,21 +195,34 @@
         function izracunajSve() {
             let suma = 0;
             document.querySelectorAll("#table-body tr").forEach(tr => {
-                let val = tr.cells[2].innerText.replace(',', '.').trim();
-                suma += parseFloat(val) || 0;
+                // Pretpostavljamo da je zadnja kolona u nizu (vrijednost)
+                let lastCellIdx = tr.cells.length - 1;
+                if(lastCellIdx > 1) {
+                    let val = tr.cells[2].innerText.replace(',', '.').trim();
+                    suma += parseFloat(val) || 0;
+                }
             });
             document.getElementById("ukupno-polje").innerText = suma.toFixed(2);
         }
 
         function addRow() {
             let tbody = document.getElementById("table-body");
+            let headerRow = document.getElementById("header-row");
             let row = tbody.insertRow();
-            let id = tbody.rows.length;
-            row.innerHTML = `
-                <td style="text-align:center; color:#999;">${id}</td>
-                <td contenteditable="true" oninput="autoSave()"></td>
-                <td contenteditable="true" oninput="autoSave()">0.00</td>
-            `;
+            
+            // ID kolona
+            let idCell = row.insertCell();
+            idCell.style.textAlign = "center";
+            idCell.style.color = "#999";
+            idCell.innerText = tbody.rows.length;
+
+            // Dinamičko dodavanje ćelija na osnovu broja kolona u headeru
+            for (let i = 1; i < headerRow.cells.length; i++) {
+                let cell = row.insertCell();
+                cell.contentEditable = "true";
+                cell.oninput = autoSave;
+                if (i === 2) cell.innerText = "0.00"; // Default vrijednost za kolonu 2
+            }
             autoSave();
         }
 
@@ -166,7 +239,6 @@
             setTimeout(() => s.innerText = "Spremno.", 2000);
         }
 
-        // Učitaj zadnje stanje kad se otvori stranica
         window.onload = () => {
             let proslo = localStorage.getItem("zadnje_stanje");
             if (proslo) popuniTabelu(JSON.parse(proslo));
