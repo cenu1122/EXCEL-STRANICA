@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moja Excel Baza</title>
+    <title>Moja Excel Baza - Resize</title>
     <style>
         body { font-family: sans-serif; margin: 20px; background-color: #f4f7f6; }
         .toolbar { 
@@ -18,19 +18,27 @@
         .btn-add { background: #217346; color: white; }
         .btn-col { background: #2b579a; color: white; }
         .btn-save { background: #0078d4; color: white; }
-        .btn-open { background: #ff9800; color: white; }
-        .btn-clear { background: #555; color: white; }
         
-        table { border-collapse: collapse; width: 100%; background: white; }
-        th, td { border: 1px solid #ccc; padding: 12px; outline: none; min-width: 50px; }
+        table { border-collapse: collapse; table-layout: fixed; width: 100%; background: white; }
+        th, td { 
+            border: 1px solid #ccc; padding: 12px; outline: none; 
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            position: relative; 
+        }
         th { background: #f8f9fa; text-align: left; }
-        td:focus { background: #f0f7ff; box-shadow: inset 0 0 0 2px #217346; }
 
-        /* STIL ZA DUPLIKATE - Jaka crvena boja */
-        .duplicate { background-color: #ff4d4d !important; color: white !important; font-weight: bold; }
-        
+        /* Držači za resize (nevidljive zone za hvatanje mišem) */
+        .resizer-r {
+            position: absolute; right: 0; top: 0; height: 100%; width: 5px;
+            cursor: col-resize; z-index: 1;
+        }
+        .resizer-b {
+            position: absolute; left: 0; bottom: 0; width: 100%; height: 5px;
+            cursor: row-resize; z-index: 1;
+        }
+
+        .duplicate { background-color: #ff4d4d !important; color: white !important; }
         .status { font-size: 13px; color: #666; }
-        #fileInput { display: none; }
     </style>
 </head>
 <body>
@@ -38,78 +46,82 @@
     <div class="toolbar">
         <button class="btn-add" onclick="addRow()">➕ Dodaj red</button>
         <button class="btn-col" onclick="addColumn()">➕ Dodaj kolonu</button>
-        <button class="btn-save" onclick="snimiKaoFajl()">💾 Snimi kao FAJL</button>
-        <button class="btn-open" onclick="document.getElementById('fileInput').click()">📂 Otvori FAJL</button>
-        <input type="file" id="fileInput" accept=".json" onchange="otvoriFajl(event)">
-        <button class="btn-clear" onclick="obrisiSve()">🧹 Resetuj tabelu</button>
-        <span class="status" id="status-text">Spremno.</span>
+        <button class="btn-save" onclick="snimiKaoFajl()">💾 Snimi</button>
+        <span class="status" id="status-text">Povuci ivice kolona ili redova za promjenu veličine.</span>
     </div>
 
     <table id="myTable">
         <thead>
             <tr id="header-row">
-                <th style="width: 50px;">ID</th>
-                <th contenteditable="true">Naziv Stavke</th>
-                <th style="width: 200px;" contenteditable="true">Vrijednost (KM)</th>
+                <th style="width: 60px;">ID<div class="resizer-r"></div></th>
+                <th contenteditable="true" style="width: 250px;">Naziv Stavke<div class="resizer-r"></div></th>
+                <th contenteditable="true" style="width: 200px;">Vrijednost (KM)<div class="resizer-r"></div></th>
             </tr>
         </thead>
         <tbody id="table-body"></tbody>
-        <tfoot>
-            <tr id="footer-row" style="background: #eee; font-weight: bold;">
-                <td id="total-label" colspan="2" style="text-align: right;">UKUPNO:</td>
-                <td id="ukupno-polje">0.00</td>
-            </tr>
-        </tfoot>
     </table>
 
     <script>
-        // --- FUNKCIJA ZA PROVJERU DUPLIKATA ---
-        function provjeriDuplikate() {
-            let sveCelije = document.querySelectorAll("#table-body td[contenteditable='true']");
-            let mapaVrijednosti = {};
+        // --- RESIZE LOGIKA ---
+        let currentResizer;
 
-            // Prvo očisti sve crvene oznake
-            sveCelije.forEach(celija => celija.classList.remove("duplicate"));
+        document.addEventListener('mousedown', function(e) {
+            if (e.target.classList.contains('resizer-r') || e.target.classList.contains('resizer-b')) {
+                currentResizer = e.target;
+                let parent = currentResizer.parentElement;
+                let startX = e.pageX;
+                let startY = e.pageY;
+                let startW = parent.offsetWidth;
+                let startH = parent.offsetHeight;
 
-            // Prođi kroz sve ćelije i broji ponavljanja
-            sveCelije.forEach(celija => {
-                let tekst = celija.innerText.trim();
-                if (tekst !== "" && tekst !== "0.00") {
-                    if (!mapaVrijednosti[tekst]) {
-                        mapaVrijednosti[tekst] = [];
+                function onMouseMove(e) {
+                    if (currentResizer.classList.contains('resizer-r')) {
+                        parent.style.width = (startW + (e.pageX - startX)) + 'px';
+                    } else {
+                        parent.parentElement.style.height = (startH + (e.pageY - startY)) + 'px';
                     }
-                    mapaVrijednosti[tekst].push(celija);
+                }
+
+                function onMouseUp() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            }
+        });
+
+        // --- OSTALE FUNKCIJE ---
+        function provjeriDuplikate() {
+            let cells = document.querySelectorAll("#table-body td[contenteditable='true']");
+            let map = {};
+            cells.forEach(c => c.classList.remove("duplicate"));
+            cells.forEach(c => {
+                let txt = c.innerText.trim();
+                if (txt !== "" && txt !== "0.00") {
+                    if (!map[txt]) map[txt] = [];
+                    map[txt].push(c);
                 }
             });
-
-            // Ako se neka vrijednost pojavljuje više od jednom, oboji je
-            for (let kljuc in mapaVrijednosti) {
-                if (mapaVrijednosti[kljuc].length > 1) {
-                    mapaVrijednosti[kljuc].forEach(celija => celija.classList.add("duplicate"));
-                }
+            for (let key in map) {
+                if (map[key].length > 1) map[key].forEach(c => c.classList.add("duplicate"));
             }
         }
 
         function addColumn() {
             let headerRow = document.getElementById("header-row");
             let tbody = document.getElementById("table-body");
-            let footerRow = document.getElementById("footer-row");
-
-            // Dodaj u zaglavlje
             let newTh = document.createElement("th");
-            newTh.innerText = "Nova Kolona";
+            newTh.innerHTML = 'Nova Kolona<div class="resizer-r"></div>';
             newTh.contentEditable = "true";
             headerRow.appendChild(newTh);
 
-            // Dodaj u svaki red u body-u
             Array.from(tbody.rows).forEach(row => {
-                let newCell = row.insertCell();
-                newCell.contentEditable = "true";
-                newCell.oninput = autoSave;
+                let cell = row.insertCell();
+                cell.contentEditable = "true";
+                cell.oninput = autoSave;
             });
-
-            // Popravi footer (povećaj colspan za UKUPNO)
-            document.getElementById("total-label").colSpan = headerRow.cells.length - 1;
             autoSave();
         }
 
@@ -118,13 +130,10 @@
             let headerCount = document.getElementById("header-row").cells.length;
             let row = tbody.insertRow();
             
-            // ID
             let idCell = row.insertCell();
+            idCell.innerHTML = `${tbody.rows.length}<div class="resizer-b"></div>`;
             idCell.style.textAlign = "center";
-            idCell.style.color = "#999";
-            idCell.innerText = tbody.rows.length;
 
-            // Ostale ćelije prema broju kolona
             for (let i = 1; i < headerCount; i++) {
                 let cell = row.insertCell();
                 cell.contentEditable = "true";
@@ -135,29 +144,15 @@
         }
 
         function autoSave() {
-            izracunajSve();
-            provjeriDuplikate(); // Ovo sada garantovano radi
-            localStorage.setItem("zadnje_stanje", JSON.stringify(pokupiPodatkeIzTabele()));
-        }
-
-        function izracunajSve() {
-            let suma = 0;
-            document.querySelectorAll("#table-body tr").forEach(tr => {
-                if (tr.cells[2]) {
-                    let val = tr.cells[2].innerText.replace(',', '.').trim();
-                    suma += parseFloat(val) || 0;
-                }
-            });
-            document.getElementById("ukupno-polje").innerText = suma.toFixed(2);
+            provjeriDuplikate();
+            localStorage.setItem("zadnje_stanje_resize", JSON.stringify(pokupiPodatkeIzTabele()));
         }
 
         function pokupiPodatkeIzTabele() {
             let rows = [];
             document.querySelectorAll("#table-body tr").forEach(tr => {
                 let rowData = [];
-                for (let i = 1; i < tr.cells.length; i++) {
-                    rowData.push(tr.cells[i].innerText);
-                }
+                for (let i = 1; i < tr.cells.length; i++) rowData.push(tr.cells[i].innerText);
                 rows.push(rowData);
             });
             return rows;
@@ -169,10 +164,7 @@
             podaci.forEach((rowData, index) => {
                 let row = tbody.insertRow();
                 let idCell = row.insertCell();
-                idCell.innerText = index + 1;
-                idCell.style.textAlign = "center";
-                idCell.style.color = "#999";
-
+                idCell.innerHTML = `${index + 1}<div class="resizer-b"></div>`;
                 rowData.forEach(val => {
                     let cell = row.insertCell();
                     cell.contentEditable = "true";
@@ -180,45 +172,19 @@
                     cell.oninput = autoSave;
                 });
             });
-            izracunajSve();
             provjeriDuplikate();
         }
 
         function snimiKaoFajl() {
-            let podaci = pokupiPodatkeIzTabele();
-            let blob = new Blob([JSON.stringify(podaci, null, 2)], {type: "application/json"});
+            let blob = new Blob([JSON.stringify(pokupiPodatkeIzTabele(), null, 2)], {type: "application/json"});
             let a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
-            a.download = "tabela_baza.json";
+            a.download = "tabela.json";
             a.click();
-            prikaziStatus("Snimljeno!");
-        }
-
-        function otvoriFajl(event) {
-            let file = event.target.files[0];
-            if (!file) return;
-            let reader = new FileReader();
-            reader.onload = function(e) {
-                let podaci = JSON.parse(e.target.result);
-                popuniTabelu(podaci);
-            };
-            reader.readAsText(file);
-        }
-
-        function obrisiSve() {
-            if(confirm("Obirisati sve?")) {
-                localStorage.removeItem("zadnje_stanje");
-                location.reload();
-            }
-        }
-
-        function prikaziStatus(t) {
-            document.getElementById("status-text").innerText = t;
-            setTimeout(() => document.getElementById("status-text").innerText = "Spremno.", 2000);
         }
 
         window.onload = () => {
-            let proslo = localStorage.getItem("zadnje_stanje");
+            let proslo = localStorage.getItem("zadnje_stanje_resize");
             if (proslo) popuniTabelu(JSON.parse(proslo));
             else addRow();
         };
