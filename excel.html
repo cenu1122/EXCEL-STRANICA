@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moja Excel Baza - Resize</title>
+    <title>Moja Excel Baza - Export Opcije</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <style>
         body { font-family: sans-serif; margin: 20px; background-color: #f4f7f6; }
         .toolbar { 
@@ -13,11 +16,13 @@
         }
         button { 
             padding: 10px 15px; cursor: pointer; border: none; border-radius: 4px; 
-            font-weight: bold; transition: 0.2s;
+            font-weight: bold; transition: 0.2s; color: white;
         }
-        .btn-add { background: #217346; color: white; }
-        .btn-col { background: #2b579a; color: white; }
-        .btn-save { background: #0078d4; color: white; }
+        .btn-add { background: #217346; }
+        .btn-col { background: #2b579a; }
+        .btn-xlsx { background: #1D6F42; } /* Excel zelena */
+        .btn-pdf { background: #E01E22; }  /* PDF crvena */
+        .btn-json { background: #0078d4; }
         
         table { border-collapse: collapse; table-layout: fixed; width: 100%; background: white; }
         th, td { 
@@ -27,7 +32,6 @@
         }
         th { background: #f8f9fa; text-align: left; }
 
-        /* Držači za resize (nevidljive zone za hvatanje mišem) */
         .resizer-r {
             position: absolute; right: 0; top: 0; height: 100%; width: 5px;
             cursor: col-resize; z-index: 1;
@@ -38,7 +42,7 @@
         }
 
         .duplicate { background-color: #ff4d4d !important; color: white !important; }
-        .status { font-size: 13px; color: #666; }
+        .status { font-size: 13px; color: #666; width: 100%; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -46,33 +50,56 @@
     <div class="toolbar">
         <button class="btn-add" onclick="addRow()">➕ Dodaj red</button>
         <button class="btn-col" onclick="addColumn()">➕ Dodaj kolonu</button>
-        <button class="btn-save" onclick="snimiKaoFajl()">💾 Snimi</button>
-        <span class="status" id="status-text">Povuci ivice kolona ili redova za promjenu veličine.</span>
+        <button class="btn-xlsx" onclick="exportToExcel()">📊 Snimi kao EXCEL</button>
+        <button class="btn-pdf" onclick="exportToPDF()">📑 Snimi kao PDF</button>
+        <button class="btn-json" onclick="snimiKaoFajl()">💾 Backup (JSON)</button>
+        <div class="status" id="status-text">Spremno za export u Excel i PDF.</div>
     </div>
 
-    <table id="myTable">
-        <thead>
-            <tr id="header-row">
-                <th style="width: 60px;">ID<div class="resizer-r"></div></th>
-                <th contenteditable="true" style="width: 250px;">Naziv Stavke<div class="resizer-r"></div></th>
-                <th contenteditable="true" style="width: 200px;">Vrijednost (KM)<div class="resizer-r"></div></th>
-            </tr>
-        </thead>
-        <tbody id="table-body"></tbody>
-    </table>
+    <div id="capture-area">
+        <table id="myTable">
+            <thead>
+                <tr id="header-row">
+                    <th style="width: 60px;">ID<div class="resizer-r"></div></th>
+                    <th contenteditable="true" style="width: 250px;">Naziv Stavke<div class="resizer-r"></div></th>
+                    <th contenteditable="true" style="width: 200px;">Vrijednost (KM)<div class="resizer-r"></div></th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+    </div>
 
     <script>
-        // --- RESIZE LOGIKA ---
-        let currentResizer;
+        // --- EXPORT U EXCEL (.xlsx) ---
+        function exportToExcel() {
+            let table = document.getElementById("myTable");
+            let wb = XLSX.utils.table_to_book(table, {sheet: "Moja Baza"});
+            XLSX.writeFile(wb, "Baza_Podataka.xlsx");
+            prikaziStatus("Excel fajl je preuzet!");
+        }
 
+        // --- EXPORT U PDF ---
+        function exportToPDF() {
+            let element = document.getElementById("capture-area");
+            let opt = {
+                margin:       10,
+                filename:     'Baza_Podataka.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+            prikaziStatus("PDF fajl je generisan!");
+        }
+
+        // --- RESIZE I OSTALE FUNKCIJE (Zadržano iz prošle verzije) ---
+        let currentResizer;
         document.addEventListener('mousedown', function(e) {
             if (e.target.classList.contains('resizer-r') || e.target.classList.contains('resizer-b')) {
                 currentResizer = e.target;
                 let parent = currentResizer.parentElement;
-                let startX = e.pageX;
-                let startY = e.pageY;
-                let startW = parent.offsetWidth;
-                let startH = parent.offsetHeight;
+                let startX = e.pageX; let startY = e.pageY;
+                let startW = parent.offsetWidth; let startH = parent.offsetHeight;
 
                 function onMouseMove(e) {
                     if (currentResizer.classList.contains('resizer-r')) {
@@ -81,18 +108,15 @@
                         parent.parentElement.style.height = (startH + (e.pageY - startY)) + 'px';
                     }
                 }
-
                 function onMouseUp() {
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
                 }
-
                 document.addEventListener('mousemove', onMouseMove);
                 document.addEventListener('mouseup', onMouseUp);
             }
         });
 
-        // --- OSTALE FUNKCIJE ---
         function provjeriDuplikate() {
             let cells = document.querySelectorAll("#table-body td[contenteditable='true']");
             let map = {};
@@ -109,6 +133,20 @@
             }
         }
 
+        function addRow() {
+            let tbody = document.getElementById("table-body");
+            let headerCount = document.getElementById("header-row").cells.length;
+            let row = tbody.insertRow();
+            let idCell = row.insertCell();
+            idCell.innerHTML = `${tbody.rows.length}<div class="resizer-b"></div>`;
+            for (let i = 1; i < headerCount; i++) {
+                let cell = row.insertCell();
+                cell.contentEditable = "true";
+                cell.oninput = autoSave;
+            }
+            autoSave();
+        }
+
         function addColumn() {
             let headerRow = document.getElementById("header-row");
             let tbody = document.getElementById("table-body");
@@ -116,7 +154,6 @@
             newTh.innerHTML = 'Nova Kolona<div class="resizer-r"></div>';
             newTh.contentEditable = "true";
             headerRow.appendChild(newTh);
-
             Array.from(tbody.rows).forEach(row => {
                 let cell = row.insertCell();
                 cell.contentEditable = "true";
@@ -125,27 +162,9 @@
             autoSave();
         }
 
-        function addRow() {
-            let tbody = document.getElementById("table-body");
-            let headerCount = document.getElementById("header-row").cells.length;
-            let row = tbody.insertRow();
-            
-            let idCell = row.insertCell();
-            idCell.innerHTML = `${tbody.rows.length}<div class="resizer-b"></div>`;
-            idCell.style.textAlign = "center";
-
-            for (let i = 1; i < headerCount; i++) {
-                let cell = row.insertCell();
-                cell.contentEditable = "true";
-                cell.oninput = autoSave;
-                if (i === 2) cell.innerText = "0.00";
-            }
-            autoSave();
-        }
-
         function autoSave() {
             provjeriDuplikate();
-            localStorage.setItem("zadnje_stanje_resize", JSON.stringify(pokupiPodatkeIzTabele()));
+            localStorage.setItem("zadnje_stanje_export", JSON.stringify(pokupiPodatkeIzTabele()));
         }
 
         function pokupiPodatkeIzTabele() {
@@ -179,12 +198,17 @@
             let blob = new Blob([JSON.stringify(pokupiPodatkeIzTabele(), null, 2)], {type: "application/json"});
             let a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
-            a.download = "tabela.json";
+            a.download = "baza_backup.json";
             a.click();
         }
 
+        function prikaziStatus(t) {
+            document.getElementById("status-text").innerText = t;
+            setTimeout(() => document.getElementById("status-text").innerText = "Spremno.", 3000);
+        }
+
         window.onload = () => {
-            let proslo = localStorage.getItem("zadnje_stanje_resize");
+            let proslo = localStorage.getItem("zadnje_stanje_export");
             if (proslo) popuniTabelu(JSON.parse(proslo));
             else addRow();
         };
