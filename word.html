@@ -1,11 +1,19 @@
-
 <!DOCTYPE html>
 <html lang="bs">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Pisala PRO - Slike i Justify</title>
+    <title>Web Pisala PRO - PDF + WORD</title>
+
+    <!-- PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- WORD -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.3.1/html-docx.min.js"></script>
+
+    <!-- FileSaver -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
     <style>
         body {
             background-color: #525659;
@@ -16,7 +24,6 @@
             font-family: 'Times New Roman', serif;
         }
 
-        /* Traka sa alatima prilagođena za TV */
         .toolbar {
             position: sticky;
             top: 0;
@@ -67,26 +74,30 @@
             border: none;
         }
 
-        /* Izgled Word stranice */
+        .btn-word {
+            background-color: #185abd;
+            color: white;
+            border: none;
+        }
+
         #editor-container {
             padding: 40px 0;
         }
 
         #document-page {
             background-color: white;
-            width: 210mm; /* A4 širina */
-            min-height: 297mm; /* A4 visina */
-            padding: 25mm; /* Margine */
+            width: 210mm;
+            min-height: 297mm;
+            padding: 25mm;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
             outline: none;
             font-size: 18px;
             line-height: 1.6;
             color: black;
             box-sizing: border-box;
-            text-align: justify; /* Početno obostrano poravnanje */
+            text-align: justify;
         }
 
-        /* Stil za slike unutar dokumenta */
         #document-page img {
             max-width: 100%;
             height: auto;
@@ -95,81 +106,158 @@
         }
 
         @media screen and (max-width: 850px) {
-            #document-page { width: 95vw; padding: 20px; }
+            #document-page {
+                width: 95vw;
+                padding: 20px;
+            }
         }
     </style>
 </head>
 <body>
 
-    <div class="toolbar">
-        <div class="group">
-            <button onclick="execCmd('bold')">B</button>
-            <button onclick="execCmd('italic')">I</button>
-            <button onclick="execCmd('underline')">U</button>
-        </div>
+<div class="toolbar">
 
-        <div class="group">
-            <button onclick="execCmd('justifyLeft')">Lijevo</button>
-            <button onclick="execCmd('justifyCenter')">Centar</button>
-            <button onclick="execCmd('justifyFull')">OBOSTRANO</button>
-        </div>
-
-        <div class="group">
-            <select onchange="execCmd('fontSize', this.value)">
-                <option value="3">Veličina</option>
-                <option value="4">Srednja</option>
-                <option value="5">Velika</option>
-                <option value="6">Naslov</option>
-            </select>
-            
-            <input type="file" id="imageInput" hidden accept="image/*" onchange="insertImage(event)">
-            <button class="btn-img" onclick="document.getElementById('imageInput').click()">📷 UBACI SLIKU</button>
-        </div>
-
-        <button class="btn-pdf" onclick="downloadPDF()">SAČUVAJ KAO PDF</button>
+    <div class="group">
+        <button onclick="execCmd('bold')">B</button>
+        <button onclick="execCmd('italic')">I</button>
+        <button onclick="execCmd('underline')">U</button>
     </div>
 
-    <div id="editor-container">
-        <div id="document-page" contenteditable="true">
-            Počnite kucati svoj tekst ovdje... Koristite dugmad iznad za formatiranje i ubacivanje slika.
-        </div>
+    <div class="group">
+        <button onclick="execCmd('justifyLeft')">Lijevo</button>
+        <button onclick="execCmd('justifyCenter')">Centar</button>
+        <button onclick="execCmd('justifyFull')">OBOSTRANO</button>
     </div>
 
-    <script>
-        // Funkcija za komande teksta
-        function execCmd(command, value = null) {
-            document.execCommand(command, false, value);
-        }
+    <div class="group">
+        <select onchange="execCmd('fontSize', this.value)">
+            <option value="3">Veličina</option>
+            <option value="4">Srednja</option>
+            <option value="5">Velika</option>
+            <option value="6">Naslov</option>
+        </select>
 
-        // Funkcija za obradu i ubacivanje slike
-        function insertImage(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const imgTag = `<img src="${e.target.result}" alt="slika">`;
-                    // Ubacuje sliku tamo gdje je kursor
-                    document.execCommand('insertHTML', false, imgTag + '<br>');
-                };
-                reader.readAsDataURL(file);
-            }
-        }
+        <input type="file" id="imageInput" hidden accept="image/*" onchange="insertImage(event)">
 
-        // Funkcija za pretvaranje u PDF
-        function downloadPDF() {
-            const element = document.getElementById('document-page');
-            const opt = {
-                margin:       10,
-                filename:     'moj_dokument.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        <button class="btn-img"
+            onclick="document.getElementById('imageInput').click()">
+            📷 UBACI SLIKU
+        </button>
+    </div>
+
+    <button class="btn-pdf" onclick="downloadPDF()">
+        SAČUVAJ PDF
+    </button>
+
+    <button class="btn-word" onclick="downloadWord()">
+        SAČUVAJ WORD
+    </button>
+
+</div>
+
+<div id="editor-container">
+    <div id="document-page" contenteditable="true">
+        Počnite kucati svoj tekst ovdje...
+    </div>
+</div>
+
+<script>
+
+    // FORMATIRANJE
+    function execCmd(command, value = null) {
+        document.execCommand(command, false, value);
+    }
+
+    // UBACIVANJE SLIKE
+    function insertImage(event) {
+
+        const file = event.target.files[0];
+
+        if (file) {
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+
+                const imgTag =
+                    `<img src="${e.target.result}" alt="slika">`;
+
+                document.execCommand(
+                    'insertHTML',
+                    false,
+                    imgTag + '<br>'
+                );
             };
-            
-            // Pokreni snimanje
-            html2pdf().set(opt).from(element).save();
+
+            reader.readAsDataURL(file);
         }
-    </script>
+    }
+
+    // PDF DOWNLOAD
+    function downloadPDF() {
+
+        const element =
+            document.getElementById('document-page');
+
+        const opt = {
+
+            margin: 10,
+
+            filename: 'moj_dokument.pdf',
+
+            image: {
+                type: 'jpeg',
+                quality: 0.98
+            },
+
+            html2canvas: {
+                scale: 2,
+                useCORS: true
+            },
+
+            jsPDF: {
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait'
+            }
+        };
+
+        html2pdf()
+            .set(opt)
+            .from(element)
+            .save();
+    }
+
+    // WORD DOWNLOAD
+    function downloadWord() {
+
+        const content =
+            document.getElementById('document-page').innerHTML;
+
+        const html =
+            `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Dokument</title>
+            </head>
+            <body>
+                ${content}
+            </body>
+            </html>
+            `;
+
+        const converted =
+            htmlDocx.asBlob(html);
+
+        saveAs(
+            converted,
+            'moj_dokument.docx'
+        );
+    }
+
+</script>
 
 </body>
 </html>
