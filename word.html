@@ -68,6 +68,12 @@
             border: 1px solid #01579b;
         }
 
+        .btn-paste {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #2e7d32;
+        }
+
         .btn-pdf {
             background-color: #2b579a;
             color: white;
@@ -105,6 +111,23 @@
             margin: 10px auto;
         }
 
+        /* Stil za tabele u editoru */
+        #document-page table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        #document-page th, #document-page td {
+            border: 1px solid #999;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        #document-page th {
+            background-color: #f2f2f2;
+        }
+
         @media screen and (max-width: 850px) {
             #document-page {
                 width: 95vw;
@@ -139,9 +162,12 @@
 
         <input type="file" id="imageInput" hidden accept="image/*" onchange="insertImage(event)">
 
-        <button class="btn-img"
-            onclick="document.getElementById('imageInput').click()">
+        <button class="btn-img" onclick="document.getElementById('imageInput').click()">
             📷 UBACI SLIKU
+        </button>
+
+        <button class="btn-paste" onclick="pasteFromClipboard()">
+            📋 ZALIJEPI TABELU/TEKST
         </button>
     </div>
 
@@ -168,74 +194,70 @@
         document.execCommand(command, false, value);
     }
 
+    // PAMETNO LIJEPLJENJE IZ KLIPBOARDA (TABELE ILI TEKST)
+    async function pasteFromClipboard() {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (!text) return;
+
+            // Provjeravamo da li sadržaj ima redove i tabulatore (što ukazuje na kopiranu tabelu iz Excela)
+            if (text.includes('\n') && (text.includes('\t') || text.includes('    '))) {
+                const rows = text.trim().split('\n');
+                let tableHtml = '<table border="1" style="border-collapse: collapse; width: 100%;"><tbody>';
+
+                rows.forEach((row, rowIndex) => {
+                    // Razdvajanje po tabulatoru ili višestrukim razmacima
+                    const cols = row.split(/\t+/);
+                    tableHtml += '<tr>';
+                    cols.forEach(col => {
+                        const cellTag = rowIndex === 0 ? 'th' : 'td';
+                        tableHtml += `<style="border: 1px solid #999; padding: 8px;">${col.trim()}</${cellTag}>`;
+                    });
+                    tableHtml += '</tr>';
+                });
+                tableHtml += '</tbody></table><br>';
+
+                document.execCommand('insertHTML', false, tableHtml);
+            } else {
+                // Ako je običan tekst, lijepi ga normalno
+                document.execCommand('insertText', false, text);
+            }
+        } catch (err) {
+            alert('Greška pri pristupu klipboardu. Provjerite dozvole pretraživača.');
+            console.error(err);
+        }
+    }
+
     // UBACIVANJE SLIKE
     function insertImage(event) {
-
         const file = event.target.files[0];
-
         if (file) {
-
             const reader = new FileReader();
-
             reader.onload = function(e) {
-
-                const imgTag =
-                    `<img src="${e.target.result}" alt="slika">`;
-
-                document.execCommand(
-                    'insertHTML',
-                    false,
-                    imgTag + '<br>'
-                );
+                const imgTag = `<img src="${e.target.result}" alt="slika">`;
+                document.execCommand('insertHTML', false, imgTag + '<br>');
             };
-
             reader.readAsDataURL(file);
         }
     }
 
     // PDF DOWNLOAD
     function downloadPDF() {
-
-        const element =
-            document.getElementById('document-page');
-
+        const element = document.getElementById('document-page');
         const opt = {
-
             margin: 10,
-
             filename: 'moj_dokument.pdf',
-
-            image: {
-                type: 'jpeg',
-                quality: 0.98
-            },
-
-            html2canvas: {
-                scale: 2,
-                useCORS: true
-            },
-
-            jsPDF: {
-                unit: 'mm',
-                format: 'a4',
-                orientation: 'portrait'
-            }
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
-
-        html2pdf()
-            .set(opt)
-            .from(element)
-            .save();
+        html2pdf().set(opt).from(element).save();
     }
 
     // WORD DOWNLOAD
     function downloadWord() {
-
-        const content =
-            document.getElementById('document-page').innerHTML;
-
-        const html =
-            `
+        const content = document.getElementById('document-page').innerHTML;
+        const html = `
             <!DOCTYPE html>
             <html>
             <head>
@@ -246,15 +268,9 @@
                 ${content}
             </body>
             </html>
-            `;
-
-        const converted =
-            htmlDocx.asBlob(html);
-
-        saveAs(
-            converted,
-            'moj_dokument.docx'
-        );
+        `;
+        const converted = htmlDocx.asBlob(html);
+        saveAs(converted, 'moj_dokument.docx');
     }
 
 </script>
