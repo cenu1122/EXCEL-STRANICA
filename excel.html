@@ -56,7 +56,7 @@
     <div class="toolbar">
         <button class="btn-add" onclick="addRow()">➕ Dodaj red</button>
         <button class="btn-col" onclick="addColumn()">➕ Dodaj kolonu</button>
-        <button class="btn-paste" onclick="pasteFromClipboard()">📋 Zalijepi tabelu</button>
+        <button class="btn-paste" onclick="otvoriProzorZaPaste()">📋 Zalijepi tabelu</button>
         <input type="text" id="searchInput" class="search-box" placeholder="🔍 Pretraži tabelu..." onkeyup="filterTable()">
         <button class="btn-xlsx" onclick="exportToExcel()">📊 Snimi kao EXCEL</button>
         <button class="btn-pdf" onclick="exportToPDF()">📑 Snimi kao PDF</button>
@@ -65,6 +65,17 @@
         <button class="btn-json" onclick="document.getElementById('importJsonInput').click()">📂 Učitaj Backup</button>
         <button class="btn-clear" onclick="clearTable()">🗑️ Obriši sve</button>
         <div class="status" id="status-text">Spremno za rad i export.</div>
+    </div>
+
+    <!-- PROZOR ZA PEJSTOVANJE (IZBJEGAVA BLOKADE PRETRAŽIVAČA) -->
+    <div id="pasteModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:25px; border-radius:8px; width:450px; text-align:center; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+            <h3 style="margin-top:0; color:#333;">Zalijepi tabelu iz Excela</h3>
+            <p style="font-size:13px; color:#666;">Klikni u polje ispod i pritisni <b>Ctrl + V</b></p>
+            <textarea id="pasteArea" rows="6" style="width:100%; padding:10px; box-sizing:border-box; border:1px solid #ccc; border-radius:4px; margin-bottom:15px;" placeholder="Ovdje pritisni Ctrl + V..."></textarea><br>
+            <button onclick="obradiPaste()" style="background:#217346; color:white; padding:10px 20px; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">Ubaci u tabelu</button>
+            <button onclick="zatvoriProzor()" style="background:#d32f2f; color:white; padding:10px 20px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:10px;">Otkaži</button>
+        </div>
     </div>
 
     <div id="capture-area">
@@ -81,41 +92,47 @@
     </div>
 
     <script>
-        // --- PAMETNO LIJEPLJENJE IZ KLIPBOARDA (EXCEL TABELE) ---
-        async function pasteFromClipboard() {
-            try {
-                const text = await navigator.clipboard.readText();
-                if (!text) return;
+        // --- PROZOR ZA PASTE LOGIKA ---
+        function otvoriProzorZaPaste() {
+            document.getElementById('pasteModal').style.display = 'flex';
+            let ta = document.getElementById('pasteArea');
+            ta.value = '';
+            ta.focus();
+        }
 
-                const rows = text.trim().split('\n');
-                let tbody = document.getElementById("table-body");
-                let headerRow = document.getElementById("header-row");
+        function zatvoriProzor() {
+            document.getElementById('pasteModal').style.display = 'none';
+        }
 
-                rows.forEach(rowStr => {
-                    const cols = rowStr.split(/\t+/);
-                    let row = tbody.insertRow();
-                    let idCell = row.insertCell();
-                    idCell.innerHTML = `${tbody.rows.length}<div class="resizer-b"></div>`;
+        function obradiPaste() {
+            const text = document.getElementById('pasteArea').value;
+            zatvoriProzor();
+            if (!text) return;
 
-                    // Osiguraj da ima dovoljno kolona u headeru ako je prekopirano više
-                    while (headerRow.cells.length - 1 < cols.length) {
-                        addColumnSilent();
-                    }
+            const rows = text.trim().split('\n');
+            let tbody = document.getElementById("table-body");
+            let headerRow = document.getElementById("header-row");
 
-                    for (let i = 0; i < headerRow.cells.length - 1; i++) {
-                        let cell = row.insertCell();
-                        cell.contentEditable = "true";
-                        cell.innerText = cols[i] !== undefined ? cols[i].trim() : "";
-                        cell.oninput = autoSave;
-                    }
-                });
+            rows.forEach(rowStr => {
+                const cols = rowStr.split(/\t+/);
+                let row = tbody.insertRow();
+                let idCell = row.insertCell();
+                idCell.innerHTML = `${tbody.rows.length}<div class="resizer-b"></div>`;
 
-                autoSave();
-                prikaziStatus("Tabela uspješno ubačena iz klipboarda!");
-            } catch (err) {
-                alert("Greška pri pristupu klipboardu. Provjerite dozvole pretraživača.");
-                console.error(err);
-            }
+                while (headerRow.cells.length - 1 < cols.length) {
+                    addColumnSilent();
+                }
+
+                for (let i = 0; i < headerRow.cells.length - 1; i++) {
+                    let cell = row.insertCell();
+                    cell.contentEditable = "true";
+                    cell.innerText = cols[i] !== undefined ? cols[i].trim() : "";
+                    cell.oninput = autoSave;
+                }
+            });
+
+            autoSave();
+            prikaziStatus("Tabela uspješno ubačena iz klipboarda!");
         }
 
         function addColumnSilent() {
