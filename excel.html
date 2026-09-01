@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moja Excel Baza - Export Opcije</title>
+    <title>Moja Excel Baza - Pro Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
@@ -20,10 +20,16 @@
         }
         .btn-add { background: #217346; }
         .btn-col { background: #2b579a; }
-        .btn-xlsx { background: #1D6F42; } /* Excel zelena */
-        .btn-pdf { background: #E01E22; }  /* PDF crvena */
+        .btn-paste { background: #673ab7; }
+        .btn-xlsx { background: #1D6F42; } 
+        .btn-pdf { background: #E01E22; }  
         .btn-json { background: #0078d4; }
+        .btn-clear { background: #d32f2f; }
         
+        .search-box {
+            padding: 9px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 200px;
+        }
+
         table { border-collapse: collapse; table-layout: fixed; width: 100%; background: white; }
         th, td { 
             border: 1px solid #ccc; padding: 12px; outline: none; 
@@ -50,10 +56,15 @@
     <div class="toolbar">
         <button class="btn-add" onclick="addRow()">➕ Dodaj red</button>
         <button class="btn-col" onclick="addColumn()">➕ Dodaj kolonu</button>
+        <button class="btn-paste" onclick="pasteFromClipboard()">📋 Zalijepi tabelu</button>
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Pretraži tabelu..." onkeyup="filterTable()">
         <button class="btn-xlsx" onclick="exportToExcel()">📊 Snimi kao EXCEL</button>
         <button class="btn-pdf" onclick="exportToPDF()">📑 Snimi kao PDF</button>
         <button class="btn-json" onclick="snimiKaoFajl()">💾 Backup (JSON)</button>
-        <div class="status" id="status-text">Spremno za export u Excel i PDF.</div>
+        <input type="file" id="importJsonInput" hidden accept=".json" onchange="ucitajBackupFajl(event)">
+        <button class="btn-json" onclick="document.getElementById('importJsonInput').click()">📂 Učitaj Backup</button>
+        <button class="btn-clear" onclick="clearTable()">🗑️ Obriši sve</button>
+        <div class="status" id="status-text">Spremno za rad i export.</div>
     </div>
 
     <div id="capture-area">
@@ -70,6 +81,72 @@
     </div>
 
     <script>
+        // --- PAMETNO LIJEPLJENJE IZ KLIPBOARDA (EXCEL TABELE) ---
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (!text) return;
+
+                const rows = text.trim().split('\n');
+                let tbody = document.getElementById("table-body");
+                let headerRow = document.getElementById("header-row");
+
+                rows.forEach(rowStr => {
+                    const cols = rowStr.split(/\t+/);
+                    let row = tbody.insertRow();
+                    let idCell = row.insertCell();
+                    idCell.innerHTML = `${tbody.rows.length}<div class="resizer-b"></div>`;
+
+                    // Osiguraj da ima dovoljno kolona u headeru ako je prekopirano više
+                    while (headerRow.cells.length - 1 < cols.length) {
+                        addColumnSilent();
+                    }
+
+                    for (let i = 0; i < headerRow.cells.length - 1; i++) {
+                        let cell = row.insertCell();
+                        cell.contentEditable = "true";
+                        cell.innerText = cols[i] !== undefined ? cols[i].trim() : "";
+                        cell.oninput = autoSave;
+                    }
+                });
+
+                autoSave();
+                prikaziStatus("Tabela uspješno ubačena iz klipboarda!");
+            } catch (err) {
+                alert("Greška pri pristupu klipboardu. Provjerite dozvole pretraživača.");
+                console.error(err);
+            }
+        }
+
+        function addColumnSilent() {
+            let headerRow = document.getElementById("header-row");
+            let tbody = document.getElementById("table-body");
+            let newTh = document.createElement("th");
+            newTh.innerHTML = 'Nova Kolona<div class="resizer-r"></div>';
+            newTh.contentEditable = "true";
+            headerRow.appendChild(newTh);
+            Array.from(tbody.rows).forEach(row => {
+                let cell = row.insertCell();
+                cell.contentEditable = "true";
+                cell.oninput = autoSave;
+            });
+        }
+
+        // --- PRETRAGA / FILTRIRANJE TABELE ---
+        function filterTable() {
+            let filter = document.getElementById("searchInput").value.toLowerCase();
+            let trs = document.querySelectorAll("#table-body tr");
+            trs.forEach(tr => {
+                let match = false;
+                Array.from(tr.cells).forEach((cell, idx) => {
+                    if (idx > 0 && cell.innerText.toLowerCase().includes(filter)) {
+                        match = true;
+                    }
+                });
+                tr.style.display = match || filter === "" ? "" : "none";
+            });
+        }
+
         // --- EXPORT U EXCEL (.xlsx) ---
         function exportToExcel() {
             let table = document.getElementById("myTable");
@@ -92,7 +169,7 @@
             prikaziStatus("PDF fajl je generisan!");
         }
 
-        // --- RESIZE I OSTALE FUNKCIJE (Zadržano iz prošle verzije) ---
+        // --- RESIZE FUNKCIONALNOST ---
         let currentResizer;
         document.addEventListener('mousedown', function(e) {
             if (e.target.classList.contains('resizer-r') || e.target.classList.contains('resizer-b')) {
@@ -148,17 +225,7 @@
         }
 
         function addColumn() {
-            let headerRow = document.getElementById("header-row");
-            let tbody = document.getElementById("table-body");
-            let newTh = document.createElement("th");
-            newTh.innerHTML = 'Nova Kolona<div class="resizer-r"></div>';
-            newTh.contentEditable = "true";
-            headerRow.appendChild(newTh);
-            Array.from(tbody.rows).forEach(row => {
-                let cell = row.insertCell();
-                cell.contentEditable = "true";
-                cell.oninput = autoSave;
-            });
+            addColumnSilent();
             autoSave();
         }
 
@@ -200,11 +267,38 @@
             a.href = URL.createObjectURL(blob);
             a.download = "baza_backup.json";
             a.click();
+            prikaziStatus("Backup fajl sačuvan!");
+        }
+
+        function ucitajBackupFajl(event) {
+            let file = event.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let data = JSON.parse(e.target.result);
+                    popuniTabelu(data);
+                    autoSave();
+                    prikaziStatus("Backup uspješno učitan!");
+                } catch(err) {
+                    alert("Greška pri učitavanju JSON fajla.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function clearTable() {
+            if (confirm("Da li ste sigurni da želite obrisati sve podatke?")) {
+                document.getElementById("table-body").innerHTML = "";
+                localStorage.removeItem("zadnje_stanje_export");
+                addRow();
+                prikaziStatus("Tabela očišćena.");
+            }
         }
 
         function prikaziStatus(t) {
             document.getElementById("status-text").innerText = t;
-            setTimeout(() => document.getElementById("status-text").innerText = "Spremno.", 3000);
+            setTimeout(() => document.getElementById("status-text").innerText = "Spremno za rad i export.", 3000);
         }
 
         window.onload = () => {
